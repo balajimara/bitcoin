@@ -181,7 +181,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         parser.add_argument("--pdbonfailure", dest="pdbonfailure", default=False, action="store_true",
                             help="Attach a python debugger if test fails")
         parser.add_argument("--usecli", dest="usecli", default=False, action="store_true",
-                            help="use bitcoin-cli instead of RPC for all commands")
+                            help="use coordinate-cli instead of RPC for all commands")
         parser.add_argument("--perf", dest="perf", default=False, action="store_true",
                             help="profile running nodes with perf for the duration of the test")
         parser.add_argument("--valgrind", dest="valgrind", default=False, action="store_true",
@@ -232,9 +232,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
         binaries = {
             "coordinated": ("coordinated", "COORDINATED"),
-            "bitcoin-cli": ("bitcoincli", "BITCOINCLI"),
-            "bitcoin-util": ("bitcoinutil", "BITCOINUTIL"),
-            "bitcoin-wallet": ("bitcoinwallet", "BITCOINWALLET"),
+            "coordinate-cli": ("bitcoincli", "BITCOINCLI"),
+            "coordinate-util": ("bitcoinutil", "BITCOINUTIL"),
+            "coordinate-wallet": ("bitcoinwallet", "BITCOINWALLET"),
         }
         for binary, [attribute_name, env_variable_name] in binaries.items():
             default_filename = os.path.join(
@@ -499,7 +499,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if binary is None:
             binary = [get_bin_from_version(v, 'coordinated', self.options.coordinated) for v in versions]
         if binary_cli is None:
-            binary_cli = [get_bin_from_version(v, 'bitcoin-cli', self.options.bitcoincli) for v in versions]
+            binary_cli = [get_bin_from_version(v, 'coordinate-cli', self.options.bitcoincli) for v in versions]
         assert_equal(len(extra_confs), num_nodes)
         assert_equal(len(extra_args), num_nodes)
         assert_equal(len(versions), num_nodes)
@@ -517,7 +517,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 timewait=self.rpc_timeout,
                 timeout_factor=self.options.timeout_factor,
                 coordinated=binary[i],
-                bitcoin_cli=binary_cli[i],
+                coordinate_cli=binary_cli[i],
                 version=versions[i],
                 coverage_dir=self.options.coveragedir,
                 cwd=self.options.tmpdir,
@@ -804,7 +804,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                     timewait=self.rpc_timeout,
                     timeout_factor=self.options.timeout_factor,
                     coordinated=self.options.coordinated,
-                    bitcoin_cli=self.options.bitcoincli,
+                    coordinate_cli=self.options.bitcoincli,
                     coverage_dir=None,
                     cwd=self.options.tmpdir,
                     descriptors=self.options.descriptors,
@@ -929,19 +929,19 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             raise SkipTest("BDB has not been compiled.")
 
     def skip_if_no_wallet_tool(self):
-        """Skip the running test if bitcoin-wallet has not been compiled."""
+        """Skip the running test if coordinate-wallet has not been compiled."""
         if not self.is_wallet_tool_compiled():
-            raise SkipTest("bitcoin-wallet has not been compiled")
+            raise SkipTest("coordinate-wallet has not been compiled")
 
-    def skip_if_no_bitcoin_util(self):
-        """Skip the running test if bitcoin-util has not been compiled."""
-        if not self.is_bitcoin_util_compiled():
-            raise SkipTest("bitcoin-util has not been compiled")
+    def skip_if_no_coordinate_util(self):
+        """Skip the running test if coordinate-util has not been compiled."""
+        if not self.is_coordinate_util_compiled():
+            raise SkipTest("coordinate-util has not been compiled")
 
     def skip_if_no_cli(self):
-        """Skip the running test if bitcoin-cli has not been compiled."""
+        """Skip the running test if coordinate-cli has not been compiled."""
         if not self.is_cli_compiled():
-            raise SkipTest("bitcoin-cli has not been compiled.")
+            raise SkipTest("coordinate-cli has not been compiled.")
 
     def skip_if_no_previous_releases(self):
         """Skip the running test if previous releases are not available."""
@@ -962,7 +962,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             raise SkipTest("external signer support has not been compiled.")
 
     def is_cli_compiled(self):
-        """Checks whether bitcoin-cli was compiled."""
+        """Checks whether coordinate-cli was compiled."""
         return self.config["components"].getboolean("ENABLE_CLI")
 
     def is_external_signer_compiled(self):
@@ -982,12 +982,12 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             return self.is_bdb_compiled()
 
     def is_wallet_tool_compiled(self):
-        """Checks whether bitcoin-wallet was compiled."""
+        """Checks whether coordinate-wallet was compiled."""
         return self.config["components"].getboolean("ENABLE_WALLET_TOOL")
 
-    def is_bitcoin_util_compiled(self):
-        """Checks whether bitcoin-util was compiled."""
-        return self.config["components"].getboolean("ENABLE_BITCOIN_UTIL")
+    def is_coordinate_util_compiled(self):
+        """Checks whether coordinate-util was compiled."""
+        return self.config["components"].getboolean("ENABLE_COORDINATE_UTIL")
 
     def is_zmq_compiled(self):
         """Checks whether the zmq module was compiled."""

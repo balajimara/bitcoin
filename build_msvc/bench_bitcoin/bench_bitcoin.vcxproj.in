@@ -24,10 +24,10 @@
     <ProjectReference Include="..\libbitcoin_node\libbitcoin_node.vcxproj">
       <Project>{460fee33-1fe1-483f-b3bf-931ff8e969a5}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\libbitcoin_util\libbitcoin_util.vcxproj">
+    <ProjectReference Include="..\libcoordinate_util\libcoordinate_util.vcxproj">
       <Project>{b53a5535-ee9d-4c6f-9a26-f79ee3bc3754}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\libbitcoin_wallet\libbitcoin_wallet.vcxproj">
+    <ProjectReference Include="..\libcoordinate_wallet\libcoordinate_wallet.vcxproj">
       <Project>{93b86837-b543-48a5-a89b-7c87abb77df2}</Project>
     </ProjectReference>
     <ProjectReference Include="..\libbitcoin_zmq\libbitcoin_zmq.vcxproj">

@@ -4018,7 +4018,7 @@ Vaya a Archivo&gt; Abrir monedero para cargar un monedero.
         <translation type="unfinished">Los desarrolladores de %s</translation>
     </message>
     <message>
-        <source>%s corrupt. Try using the wallet tool bitcoin-wallet to salvage or restoring a backup.</source>
+        <source>%s corrupt. Try using the wallet tool coordinate-wallet to salvage or restoring a backup.</source>
         <translation type="unfinished">%s corrupto. Intenta utilizar la herramienta del monedero bitcoin-monedero para guardar o restaurar un respaldo.</translation>
     </message>
     <message>
@@ -4066,7 +4066,7 @@ Vaya a Archivo&gt; Abrir monedero para cargar un monedero.
         <translation type="unfinished">Error: el registro del identificador del archivo de volcado es incorrecto. Se obtuvo «%s» pero se esperaba «%s».</translation>
     </message>
     <message>
-        <source>Error: Dumpfile version is not supported. This version of bitcoin-wallet only supports version 1 dumpfiles. Got dumpfile with version %s</source>
+        <source>Error: Dumpfile version is not supported. This version of coordinate-wallet only supports version 1 dumpfiles. Got dumpfile with version %s</source>
         <translation type="unfinished">Error: la versión del archivo volcado no es compatible. Esta versión de monedero bitcoin solo admite archivos de volcado de la versión 1. Consigue volcado de fichero con la versión %s</translation>
     </message>
     <message>

@@ -10,8 +10,8 @@
 //! separate header files. More complicated wallet public types like
 //! CCoinControl that are used externally can have separate headers.
 
-#ifndef BITCOIN_WALLET_TYPES_H
-#define BITCOIN_WALLET_TYPES_H
+#ifndef COORDINATE_WALLET_TYPES_H
+#define COORDINATE_WALLET_TYPES_H
 
 #include <type_traits>
 
@@ -64,4 +64,4 @@ enum class AddressPurpose {
 };
 } // namespace wallet
 
-#endif // BITCOIN_WALLET_TYPES_H
+#endif // COORDINATE_WALLET_TYPES_H

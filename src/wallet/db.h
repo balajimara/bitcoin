@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_WALLET_DB_H
-#define BITCOIN_WALLET_DB_H
+#ifndef COORDINATE_WALLET_DB_H
+#define COORDINATE_WALLET_DB_H
 
 #include <clientversion.h>
 #include <streams.h>
@@ -220,4 +220,4 @@ bool IsBDBFile(const fs::path& path);
 bool IsSQLiteFile(const fs::path& path);
 } // namespace wallet
 
-#endif // BITCOIN_WALLET_DB_H
+#endif // COORDINATE_WALLET_DB_H

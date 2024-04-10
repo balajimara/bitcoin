@@ -63,17 +63,17 @@ Updated RPCs
   parameter](https://github.com/bitcoin/bitcoin/blob/master/doc/JSON-RPC-interface.md#parameter-passing) called `args` that can
   contain positional parameter values. This is a convenience to allow some
   parameter values to be passed by name without having to name every value. The
-  python test framework and `bitcoin-cli` tool both take advantage of this, so
+  python test framework and `coordinate-cli` tool both take advantage of this, so
   for example:
 
 ```sh
-bitcoin-cli -named createwallet wallet_name=mywallet load_on_startup=1
+coordinate-cli -named createwallet wallet_name=mywallet load_on_startup=1
 ```
 
 Can now be shortened to:
 
 ```sh
-bitcoin-cli -named createwallet mywallet load_on_startup=1
+coordinate-cli -named createwallet mywallet load_on_startup=1
 ```
 
 - The `verifychain` RPC will now return `false` if the checks didn't fail,

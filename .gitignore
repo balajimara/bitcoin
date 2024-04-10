@@ -4,13 +4,13 @@
 *.pdb
 src/bitcoin
 src/coordinated
-src/bitcoin-cli
+src/coordinate-cli
 src/bitcoin-gui
 src/bitcoin-node
-src/bitcoin-tx
-src/bitcoin-util
+src/coordinate-tx
+src/coordinate-util
 src/bitcoin-chainstate
-src/bitcoin-wallet
+src/coordinate-wallet
 src/test/fuzz/fuzz
 src/test/test_bitcoin
 src/qt/test/test_coordinate-qt

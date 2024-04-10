@@ -252,7 +252,7 @@ actually using them on mainnet has been previously inconvenient as
 standard Bitcoin Core nodes wouldn't relay them to miners, nor would
 most miners include them in blocks they mined.
 
-bitcoin-tx
+coordinate-tx
 ----------
 
 It has been observed that many of the RPC functions offered by coordinated are
@@ -260,9 +260,9 @@ It has been observed that many of the RPC functions offered by coordinated are
 included many of the RPC "raw transaction" API functions, such as
 createrawtransaction.
 
-bitcoin-tx is a newly introduced command line utility designed to enable easy
+coordinate-tx is a newly introduced command line utility designed to enable easy
 manipulation of bitcoin transactions. A summary of its operation may be
-obtained via "bitcoin-tx --help" Transactions may be created or signed in a
+obtained via "coordinate-tx --help" Transactions may be created or signed in a
 manner similar to the RPC raw tx API. Transactions may be updated, deleting
 inputs or outputs, or appending new inputs and outputs. Custom scripts may be
 easily composed using a simple text notation, borrowed from the bitcoin test
@@ -337,7 +337,7 @@ Detailed release notes follow. This overview includes changes that affect extern
 behavior, not code moves, refactors or string updates.
 
 RPC:
-- `f923c07` Support IPv6 lookup in bitcoin-cli even when IPv6 only bound on localhost
+- `f923c07` Support IPv6 lookup in coordinate-cli even when IPv6 only bound on localhost
 - `b641c9c` Fix addnode "onetry": Connect with OpenNetworkConnection
 - `171ca77` estimatefee / estimatepriority RPC methods
 - `b750cf1` Remove cli functionality from coordinated
@@ -391,7 +391,7 @@ Command-line options:
 - `4278b1d` Clarify error message when invalid -rpcallowip
 - `6b407e4` -datadir is now allowed in config files
 - `bdd5b58` Add option `-sysperms` to disable 077 umask (create new files with system default umask)
-- `cbe39a3` Add "bitcoin-tx" command line utility and supporting modules
+- `cbe39a3` Add "coordinate-tx" command line utility and supporting modules
 - `dbca89b` Trigger -alertnotify if network is upgrading without you
 - `ad96e7c` Make -reindex cope with out-of-order blocks
 - `16d5194` Skip reindexed blocks individually
@@ -492,7 +492,7 @@ Build system:
 - `9ce0774` build: Fix windows configure when using --with-qt-libdir
 - `ea96475` build: Add mention of --disable-wallet to bdb48 error messages
 - `1dec09b` depends: add shared dependency builder
-- `c101c76` build: Add --with-utils (bitcoin-cli and bitcoin-tx, default=yes). Help string consistency tweaks. Target sanity check fix
+- `c101c76` build: Add --with-utils (coordinate-cli and coordinate-tx, default=yes). Help string consistency tweaks. Target sanity check fix
 - `e432a5f` build: add option for reducing exports (v2)
 - `6134b43` Fixing condition 'sabotaging' MSVC build
 - `af0bd5e` osx: fix signing to make Gatekeeper happy (again)
@@ -585,8 +585,8 @@ Tests:
 - `4cac5db` script tests: value with trailing 0x00 is true
 - `89101c6` script test: test case for 5-byte bools
 - `d2d9dc0` script tests: add tests for CHECKMULTISIG limits
-- `d789386` Add "it works" test for bitcoin-tx
-- `df4d61e` Add bitcoin-tx tests
+- `d789386` Add "it works" test for coordinate-tx
+- `df4d61e` Add coordinate-tx tests
 - `aa41ac2` Test IsPushOnly() with invalid push
 - `6022b5d` Make `script_{valid,invalid}.json` validation flags configurable
 - `8138cbe` Add automatic script test generation, and actual checksig tests
@@ -598,7 +598,7 @@ Tests:
 - `2b62e17` Clearly separate PUSHDATA and numeric argument MINIMALDATA tests
 - `16d78bd` Add valid invert of invalid every numeric opcode tests
 - `f635269` tests: enable alertnotify test for Windows
-- `7a41614` tests: allow rpc-tests to get filenames for coordinated and bitcoin-cli from the environment
+- `7a41614` tests: allow rpc-tests to get filenames for coordinated and coordinate-cli from the environment
 - `5122ea7` tests: fix forknotify.py on windows
 - `fa7f8cd` tests: remove old pull-tester scripts
 - `7667850` tests: replace the old (unused since Travis) tests with new rpc test scripts

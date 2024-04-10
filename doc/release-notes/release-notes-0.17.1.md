@@ -112,7 +112,7 @@ confusion.
 
 ### Build system
 - #14647 `7edebed` Remove illegal spacing in darwin.mk (ch4ot1c)
-- #14698 `ec71f06` Add bitcoin-tx.exe into Windows installer (ken2812221)
+- #14698 `ec71f06` Add coordinate-tx.exe into Windows installer (ken2812221)
 
 ### Tests and QA
 - #13965 `29899ec` Fix extended functional tests fail (ken2812221)

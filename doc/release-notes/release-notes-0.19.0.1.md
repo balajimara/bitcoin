@@ -250,7 +250,7 @@ P2P changes
 Miscellaneous CLI Changes
 -------------------------
 
-- The `testnet` field in `bitcoin-cli -getinfo` has been renamed to
+- The `testnet` field in `coordinate-cli -getinfo` has been renamed to
   `chain` and now returns the current network name as defined in BIP70
   (main, test, regtest). (#15566)
 
@@ -443,7 +443,7 @@ Build system changes
 - #15508 Refactor analyzepsbt for use outside RPC code (gwillen)
 - #15747 Remove plethora of Get*Balance (MarcoFalke)
 - #15728 Refactor relay transactions (jnewbery)
-- #15639 bitcoin-wallet tool: Drop libbitcoin_server.a dependency (ryanofsky)
+- #15639 coordinate-wallet tool: Drop libbitcoin_server.a dependency (ryanofsky)
 - #15853 Remove unused import checkpoints.h (MarcoFalke)
 - #15780 add cachable amounts for caching credit/debit values (kallewoof)
 - #15778 Move maxtxfee from node to wallet (jnewbery)
@@ -697,7 +697,7 @@ Build system changes
 - #15866 Add missing syncwithvalidationinterfacequeue to wallet_import_rescan (MarcoFalke)
 - #15697 Make swap_magic_bytes in p2p_invalid_messages atomic (MarcoFalke)
 - #15895 Avoid re-reading config.ini unnecessarily (luke-jr)
-- #15896 feature_filelock, interface_bitcoin_cli: Use PACKAGE_NAME in messages rather than hardcoding Bitcoin Core (luke-jr)
+- #15896 feature_filelock, interface_coordinate_cli: Use PACKAGE_NAME in messages rather than hardcoding Bitcoin Core (luke-jr)
 - #15897 QA/mininode: Send all headers upfront in send_blocks_and_test to avoid sending an unconnected one (luke-jr)
 - #15696 test_runner: Move feature_pruning to base tests (MarcoFalke)
 - #15869 Add settings merge test to prevent regresssions (ryanofsky)
@@ -938,7 +938,7 @@ Build system changes
 - #14862 Declare BLOCK_VALID_HEADER reserved (MarcoFalke)
 - #16806 Add issue templates for bug and feature request (MarcoFalke)
 - #16857 Elaborate need to re-login on Debian-based after usermod for Tor group (clashicly)
-- #16863 Add a missing closing parenthesis in the bitcoin-wallet's help (darosior)
+- #16863 Add a missing closing parenthesis in the coordinate-wallet's help (darosior)
 - #16757 CChainState return values (MarcoFalke)
 - #16847 add comments clarifying how local services are advertised (jamesob)
 - #16812 Fix whitespace errs in .md files, bitcoin.conf, and Info.plist.in (ch4ot1c)

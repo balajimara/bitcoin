@@ -392,7 +392,7 @@ git merge commit are mentioned.
 - #5366 `47a79bb` No longer check osx compatibility in RenameThread
 - #5689 `07f4386` openssl: abstract out OPENSSL_cleanse
 - #5708 `8b298ca` Add list of implemented BIPs
-- #5809 `46bfbe7` Add bitcoin-cli man page
+- #5809 `46bfbe7` Add coordinate-cli man page
 - #5839 `86eb461` keys: remove libsecp256k1 verification until it's actually supported
 - #5749 `d734d87` Help messages correctly formatted (79 chars)
 - #5884 `7077fe6` BUGFIX: Stack around the variable 'rv' was corrupted
@@ -406,7 +406,7 @@ git merge commit are mentioned.
 - #5964 `b4c219b` Lightweight task scheduler
 - #6116 `30dc3c1` [OSX] rename Coordinate-Qt.app to Bitcoin-Core.app
 - #6168 `b3024f0` contrib/linearize: Support linearization of testnet blocks
-- #6098 `7708fcd` Update Windows resource files (and add one for bitcoin-tx)
+- #6098 `7708fcd` Update Windows resource files (and add one for coordinate-tx)
 - #6159 `e1412d3` Catch errors on datadir lock and pidfile delete
 - #6186 `182686c` Fix two problems in CSubnet parsing
 - #6174 `df992b9` doc: add translation strings policy

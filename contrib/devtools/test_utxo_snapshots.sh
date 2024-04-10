@@ -64,10 +64,10 @@ trap finish EXIT
 EARLY_IBD_FLAGS="-maxtipage=9223372036854775207 -minimumchainwork=0x00"
 
 server_rpc() {
-  ./src/bitcoin-cli -rpcport=$SERVER_RPC_PORT -datadir="$SERVER_DATADIR" "$@"
+  ./src/coordinate-cli -rpcport=$SERVER_RPC_PORT -datadir="$SERVER_DATADIR" "$@"
 }
 client_rpc() {
-  ./src/bitcoin-cli -rpcport=$CLIENT_RPC_PORT -datadir="$CLIENT_DATADIR" "$@"
+  ./src/coordinate-cli -rpcport=$CLIENT_RPC_PORT -datadir="$CLIENT_DATADIR" "$@"
 }
 server_sleep_til_boot() {
   while ! server_rpc ping >/dev/null 2>&1; do sleep 0.1; done
@@ -186,7 +186,7 @@ echo
 echo "-- Loading UTXO snapshot into client..."
 client_rpc loadtxoutset "$UTXO_DAT_FILE"
 
-watch -n 0.3 "( tail -n 14 $CLIENT_DATADIR/debug.log ; echo ; ./src/bitcoin-cli -rpcport=$CLIENT_RPC_PORT -datadir=$CLIENT_DATADIR getchainstates) | cat"
+watch -n 0.3 "( tail -n 14 $CLIENT_DATADIR/debug.log ; echo ; ./src/coordinate-cli -rpcport=$CLIENT_RPC_PORT -datadir=$CLIENT_DATADIR getchainstates) | cat"
 
 echo
 echo "-- Okay, now I'm going to restart the client to make sure that the snapshot chain reloads "
@@ -203,7 +203,7 @@ client_sleep_til_boot
 CLIENT_PID="$!"
 client_sleep_til_boot
 
-watch -n 0.3 "( tail -n 14 $CLIENT_DATADIR/debug.log ; echo ; ./src/bitcoin-cli -rpcport=$CLIENT_RPC_PORT -datadir=$CLIENT_DATADIR getchainstates) | cat"
+watch -n 0.3 "( tail -n 14 $CLIENT_DATADIR/debug.log ; echo ; ./src/coordinate-cli -rpcport=$CLIENT_RPC_PORT -datadir=$CLIENT_DATADIR getchainstates) | cat"
 
 echo
 echo "-- Done!"

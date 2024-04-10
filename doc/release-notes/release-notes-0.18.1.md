@@ -91,7 +91,7 @@ not to use coin control features with multiple wallets loaded.
 
 ### Build system
 - #15985 Add test for GCC bug 90348 (sipa)
-- #15947 Install bitcoin-wallet manpage (domob1812)
+- #15947 Install coordinate-wallet manpage (domob1812)
 - #15983 build with -fstack-reuse=none (MarcoFalke)
 
 ### Tests and QA

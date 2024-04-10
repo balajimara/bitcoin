@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_TXORPHANAGE_H
-#define BITCOIN_TXORPHANAGE_H
+#ifndef COORDINATE_TXORPHANAGE_H
+#define COORDINATE_TXORPHANAGE_H
 
 #include <net.h>
 #include <primitives/block.h>
@@ -102,4 +102,4 @@ protected:
     int EraseTxNoLock(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
 };
 
-#endif // BITCOIN_TXORPHANAGE_H
+#endif // COORDINATE_TXORPHANAGE_H
