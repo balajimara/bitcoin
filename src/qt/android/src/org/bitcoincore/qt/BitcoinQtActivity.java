@@ -13,9 +13,9 @@ public class BitcoinQtActivity extends QtActivity
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
-        final File bitcoinDir = new File(getFilesDir().getAbsolutePath() + "/.bitcoin");
-        if (!bitcoinDir.exists()) {
-            bitcoinDir.mkdir();
+        final File coordinateDir = new File(getFilesDir().getAbsolutePath() + "/.bitcoin");
+        if (!coordinateDir.exists()) {
+            coordinateDir.mkdir();
         }
 
         super.onCreate(savedInstanceState);

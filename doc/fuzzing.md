@@ -71,7 +71,7 @@ block^@M-^?M-^?M-^?M-^?M-^?nM-^?M-^?
 
 In this case the fuzzer managed to create a `block` message which when passed to `ProcessMessage(...)` increased coverage.
 
-It is possible to specify `bitcoind` arguments to the `fuzz` executable.
+It is possible to specify `coordinated` arguments to the `fuzz` executable.
 Depending on the test, they may be ignored or consumed and alter the behavior
 of the test. Just make sure to use double-dash to distinguish them from the
 fuzzer's own arguments:
@@ -196,7 +196,7 @@ Read the [Honggfuzz documentation](https://github.com/google/honggfuzz/blob/mast
 ## Fuzzing the Bitcoin Core P2P layer using Honggfuzz NetDriver
 
 Honggfuzz NetDriver allows for very easy fuzzing of TCP servers such as Bitcoin
-Core without having to write any custom fuzzing harness. The `bitcoind` server
+Core without having to write any custom fuzzing harness. The `coordinated` server
 process is largely fuzzed without modification.
 
 This makes the fuzzing highly realistic: a bug reachable by the fuzzer is likely
@@ -259,11 +259,11 @@ index 7601a6ea84..702d0f56ce 100644
                   SanitizeString(msg.m_type), msg.m_message_size,
                   HexStr(Span{hash}.first(CMessageHeader::CHECKSUM_SIZE)),
 EOF
-$ make -C src/ bitcoind
+$ make -C src/ coordinated
 $ mkdir -p inputs/
 $ honggfuzz/honggfuzz --exit_upon_crash --quiet --timeout 4 -n 1 -Q \
       -E HFND_TCP_PORT=18444 -f inputs/ -- \
-          src/bitcoind -regtest -discover=0 -dns=0 -dnsseed=0 -listenonion=0 \
+          src/coordinated -regtest -discover=0 -dns=0 -dnsseed=0 -listenonion=0 \
                        -nodebuglogfile -bind=127.0.0.1:18444 -logthreadnames \
                        -debug
 ```
