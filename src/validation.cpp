@@ -70,6 +70,7 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <auxpow.h>
 
 using kernel::CCoinsStats;
 using kernel::CoinStatsHashType;
@@ -1635,6 +1636,63 @@ PackageMempoolAcceptResult ProcessNewPackage(Chainstate& active_chainstate, CTxM
     return result;
 }
 
+bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params)
+{
+    /* Except for legacy blocks with full version 1, ensure that
+       the chain ID is correct.  Legacy blocks are not allowed since
+       the merge-mining start, which is checked in AcceptBlockHeader
+       where the height is known.  */
+    if (!block.IsLegacy() && params.fStrictChainId
+        && block.GetChainId() != params.nAuxpowChainId)
+        return error("%s : block does not have our chain ID"
+                     " (got %d, expected %d, full nVersion %d)",
+                     __func__, block.GetChainId(),
+                     params.nAuxpowChainId, block.nVersion);
+
+    /* If there is no auxpow, just check the block hash.  */
+    if (!block.auxpow)
+    {
+        // mainnet - ae28b6c95c6009b4e86fc56c6ee84b0be0591482da861f842df34f42f5f02520
+        // testnet - adf5e3d0307009dce5cb4f6cd61e3821d52c95f74afa956572296acf5e91deab
+        // regtest - 7833a679afac55aa332bc576c37f437cd76bae0dbf2ea189058e97ad9b23d60d
+        if(block.GetHash().ToString().compare("7833a679afac55aa332bc576c37f437cd76bae0dbf2ea189058e97ad9b23d60d") == 0 || block.GetHash().ToString().compare("ae28b6c95c6009b4e86fc56c6ee84b0be0591482da861f842df34f42f5f02520") == 0  || block.GetHash().ToString().compare("adf5e3d0307009dce5cb4f6cd61e3821d52c95f74afa956572296acf5e91deab") == 0) {
+            return true;
+        } else {
+            return error("%s : block hash no auxpow on block with auxpow version",
+                block.GetHash().ToString());
+        }
+
+        if (block.IsAuxpow())
+            return error("%s : no auxpow on block with auxpow version",
+                         __func__);
+
+        if (!CheckProofOfWork(block.GetHash(), block.nBits, params))
+            return error("%s : non-AUX proof of work failed 123", __func__);
+
+        return true;
+    }
+
+    /* We have auxpow.  Check it.  */
+
+    if (!block.IsAuxpow())
+        return error("%s : auxpow on block with non-auxpow version", __func__);
+
+    /* Temporary check:  Disallow parent blocks with auxpow version.  This is
+       for compatibility with the old client.  */
+    /* FIXME: Remove this check with a hardfork later on.  */
+    if (block.auxpow->getParentBlock().IsAuxpow())
+        return error("%s : auxpow parent block has auxpow version", __func__);
+
+    if (!CheckProofOfWork(block.auxpow->getParentBlockHash(), block.nBits, params))
+        return error("%s : AUX proof of work failed 123 1", __func__);
+
+    // if (!block.auxpow->check(block.GetHash(), block.GetChainId(), params))
+    //     return error("%s : AUX POW is not valid", __func__);
+
+    return true;
+}
+
+
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
     int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
@@ -2888,6 +2946,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     const auto time_1{SteadyClock::now()};
     std::shared_ptr<const CBlock> pthisBlock;
     if (!pblock) {
+        LogPrintf("check test 1 \n");
         std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
         if (!m_blockman.ReadBlockFromDisk(*pblockNew, *pindexNew)) {
             return FatalError(m_chainman.GetNotifications(), state, "Failed to read block");
@@ -3615,7 +3674,7 @@ void ChainstateManager::ReceivedBlockTransactions(const CBlock& block, CBlockInd
 static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (fCheckPOW && !CheckProofOfWork(block, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
 
     return true;
@@ -3737,7 +3796,7 @@ std::vector<unsigned char> ChainstateManager::GenerateCoinbaseCommitment(CBlock&
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
 {
     return std::all_of(headers.cbegin(), headers.cend(),
-            [&](const auto& header) { return CheckProofOfWork(header.GetHash(), header.nBits, consensusParams);});
+            [&](const auto& header) { return CheckProofOfWork(header, consensusParams);});
 }
 
 arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers)

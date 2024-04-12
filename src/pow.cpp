@@ -37,6 +37,14 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         return pindexLast->nBits;
     }
 
+    /* Adapt the retargeting interval after merge-mining start
+       according to the changed coordinate rules.  */
+    int nBlocksBack = params.DifficultyAdjustmentInterval() - 1;
+    if (pindexLast->nHeight >= params.nAuxpowStartHeight
+        && (pindexLast->nHeight + 1 > params.DifficultyAdjustmentInterval()))
+        nBlocksBack = params.DifficultyAdjustmentInterval();
+
+
     // Go back by what we want to be 14 days worth of blocks
     int nHeightFirst = pindexLast->nHeight - (params.DifficultyAdjustmentInterval()-1);
     assert(nHeightFirst >= 0);

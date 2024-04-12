@@ -26,6 +26,7 @@ struct NodeContext;
 
 static constexpr int NUM_GETBLOCKSTATS_PERCENTILES = 5;
 
+double GetDifficultyForBits(const uint32_t nBits);
 /**
  * Get the difficulty of the net wrt to the given block index.
  *

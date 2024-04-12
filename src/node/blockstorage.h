@@ -366,9 +366,9 @@ public:
     bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatFilePos& pos) const;
 
     bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex& index) const;
-
     void CleanupBlockRevFiles() const;
 };
+
 
 void ImportBlocks(ChainstateManager& chainman, std::vector<fs::path> vImportFiles);
 } // namespace node

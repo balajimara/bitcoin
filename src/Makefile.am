@@ -122,6 +122,7 @@ BITCOIN_CORE_H = \
   addrman.h \
   addrman_impl.h \
   attributes.h \
+  auxpow.h \
   banman.h \
   base58.h \
   bech32.h \
@@ -251,6 +252,7 @@ BITCOIN_CORE_H = \
   randomenv.h \
   rest.h \
   reverse_iterator.h \
+  rpc/auxpow_miner.h \
   rpc/blockchain.h \
   rpc/client.h \
   rpc/mempool.h \
@@ -262,6 +264,7 @@ BITCOIN_CORE_H = \
   rpc/server.h \
   rpc/server_util.h \
   rpc/util.h \
+  rpc/coordinaterpc.h \
   scheduler.h \
   script/descriptor.h \
   script/keyorigin.h \
@@ -446,6 +449,7 @@ libbitcoin_node_a_SOURCES = \
   rpc/blockchain.cpp \
   rpc/fees.cpp \
   rpc/mempool.cpp \
+  rpc/coordinaterpc.cpp \
   rpc/mining.cpp \
   rpc/net.cpp \
   rpc/node.cpp \
@@ -507,6 +511,7 @@ libcoordinate_wallet_a_SOURCES = \
   wallet/load.cpp \
   wallet/receive.cpp \
   wallet/rpc/addresses.cpp \
+  wallet/rpc/auxpow.cpp \
   wallet/rpc/backup.cpp \
   wallet/rpc/coins.cpp \
   wallet/rpc/encrypt.cpp \
@@ -639,6 +644,8 @@ libbitcoin_consensus_a_SOURCES = \
   prevector.h \
   primitives/block.cpp \
   primitives/block.h \
+  primitives/pureheader.cpp \
+  primitives/pureheader.h \
   primitives/transaction.cpp \
   primitives/transaction.h \
   pubkey.cpp \
@@ -664,6 +671,7 @@ libbitcoin_consensus_a_SOURCES = \
 libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
 libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
+  auxpow.cpp \
   addresstype.cpp \
   base58.cpp \
   bech32.cpp \
@@ -924,6 +932,7 @@ libbitcoinkernel_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -fvisibility=default
 libbitcoinkernel_la_SOURCES = \
   kernel/bitcoinkernel.cpp \
   arith_uint256.cpp \
+  auxpow.cpp \
   chain.cpp \
   clientversion.cpp \
   coins.cpp \
@@ -958,6 +967,7 @@ libbitcoinkernel_la_SOURCES = \
   policy/settings.cpp \
   pow.cpp \
   primitives/block.cpp \
+  primitives/pureheader.cpp \
   primitives/transaction.cpp \
   pubkey.cpp \
   random.cpp \

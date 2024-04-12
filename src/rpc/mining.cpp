@@ -40,7 +40,7 @@
 
 #include <memory>
 #include <stdint.h>
-
+#include <logging.h>
 using node::BlockAssembler;
 using node::CBlockTemplate;
 using node::NodeContext;
@@ -119,25 +119,25 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& 
 {
     block_out.reset();
     block.hashMerkleRoot = BlockMerkleRoot(block);
-
-    while (max_tries > 0 && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetHash(), block.nBits, chainman.GetConsensus()) && !ShutdownRequested()) {
-        ++block.nNonce;
+    auto& miningHeader = CAuxPow::initAuxPow(block);
+    while (max_tries > 0 && miningHeader.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(miningHeader.GetHash(), block.nBits, chainman.GetConsensus()) && !ShutdownRequested()) {
+        ++miningHeader.nNonce;
         --max_tries;
     }
     if (max_tries == 0 || ShutdownRequested()) {
         return false;
     }
-    if (block.nNonce == std::numeric_limits<uint32_t>::max()) {
+    if (miningHeader.nNonce == std::numeric_limits<uint32_t>::max()) {
         return true;
     }
-
     block_out = std::make_shared<const CBlock>(block);
 
     if (!process_new_block) return true;
-
     if (!chainman.ProcessNewBlock(block_out, /*force_processing=*/true, /*min_pow_checked=*/true, nullptr)) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
     }
+
+    LogPrintf("testing 8 \n");
 
     return true;
 }
@@ -151,6 +151,7 @@ static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& me
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
         std::shared_ptr<const CBlock> block_out;
+        LogPrintf("testing 1 \n");
         if (!GenerateBlock(chainman, pblocktemplate->block, nMaxTries, block_out, /*process_new_block=*/true)) {
             break;
         }

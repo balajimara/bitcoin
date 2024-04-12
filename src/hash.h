@@ -221,6 +221,7 @@ public:
     }
 };
 
+
 /** Single-SHA256 a 32-byte input (represented as uint256). */
 [[nodiscard]] uint256 SHA256Uint256(const uint256& input);
 

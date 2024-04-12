@@ -71,6 +71,81 @@ static GlobalMutex cs_blockchange;
 static std::condition_variable cond_blockchange;
 static CUpdatedBlock latestblock GUARDED_BY(cs_blockchange);
 
+double GetDifficultyForBits(const uint32_t nBits)
+{
+    const uint32_t mantissa = nBits & 0x00ffffff;
+    if (mantissa == 0)
+        return 0.0;
+
+    int nShift = (nBits >> 24) & 0xff;
+    double dDiff = (double)0x0000ffff / (double)mantissa;
+
+    while (nShift < 29)
+    {
+        dDiff *= 256.0;
+        nShift++;
+    }
+    while (nShift > 29)
+    {
+        dDiff /= 256.0;
+        nShift--;
+    }
+
+    return dDiff;
+}
+
+
+static void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry,
+                     Chainstate& active_chainstate, const CTxUndo* txundo = nullptr,
+                     TxVerbosity verbosity = TxVerbosity::SHOW_DETAILS)
+{
+    CHECK_NONFATAL(verbosity >= TxVerbosity::SHOW_DETAILS);
+    // Call into TxToUniv() in bitcoin-common to decode the transaction hex.
+    //
+    // Blockchain contextual information (confirmations and blocktime) is not
+    // available to code in bitcoin-common, so we query them here and push the
+    // data into the returned UniValue.
+    TxToUniv(tx, /*block_hash=*/uint256(), entry, /*include_hex=*/true, RPCSerializationFlags(), txundo, verbosity);
+
+    if (!hashBlock.IsNull()) {
+        LOCK(cs_main);
+
+        entry.pushKV("blockhash", hashBlock.GetHex());
+        const CBlockIndex* pindex = active_chainstate.m_blockman.LookupBlockIndex(hashBlock);
+        if (pindex) {
+            if (active_chainstate.m_chain.Contains(pindex)) {
+                entry.pushKV("confirmations", 1 + active_chainstate.m_chain.Height() - pindex->nHeight);
+                entry.pushKV("time", pindex->GetBlockTime());
+                entry.pushKV("blocktime", pindex->GetBlockTime());
+            }
+            else
+                entry.pushKV("confirmations", 0);
+        }
+    }
+}
+
+
+/** Converts the base data, excluding any contextual information,
+ * in a block header to JSON.  */
+static UniValue blockheaderToJSON(const CPureBlockHeader& header)
+{
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("hash", header.GetHash().GetHex());
+    result.pushKV("version", header.nVersion);
+    result.pushKV("versionHex", strprintf("%08x", header.nVersion));
+    result.pushKV("merkleroot", header.hashMerkleRoot.GetHex());
+    result.pushKV("time", (int64_t)header.nTime);
+    result.pushKV("nonce", (uint64_t)header.nNonce);
+    result.pushKV("bits", strprintf("%08x", header.nBits));
+    result.pushKV("difficulty", GetDifficultyForBits(header.nBits));
+
+    if (!header.hashPrevBlock.IsNull())
+        result.pushKV("previousblockhash", header.hashPrevBlock.GetHex());
+
+    return result;
+}
+
+
 /* Calculate the difficulty for a given block index.
  */
 double GetDifficulty(const CBlockIndex* blockindex)
@@ -199,6 +274,48 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
 
     return result;
 }
+
+
+UniValue AuxpowToJSON(const CAuxPow& auxpow, const bool verbose, Chainstate& active_chainstate)
+{
+    UniValue result(UniValue::VOBJ);
+
+    {
+        UniValue tx(UniValue::VOBJ);
+        tx.pushKV("hex", EncodeHexTx(*auxpow.coinbaseTx));
+        TxToJSON(*auxpow.coinbaseTx, auxpow.parentBlock.GetHash(), tx, active_chainstate);
+        result.pushKV("tx", tx);
+    }
+
+    result.pushKV("chainindex", auxpow.nChainIndex);
+
+    {
+        UniValue branch(UniValue::VARR);
+        for (const auto& node : auxpow.vMerkleBranch)
+            branch.push_back(node.GetHex());
+        result.pushKV("merklebranch", branch);
+    }
+
+    {
+        UniValue branch(UniValue::VARR);
+        for (const auto& node : auxpow.vChainMerkleBranch)
+            branch.push_back(node.GetHex());
+        result.pushKV("chainmerklebranch", branch);
+    }
+
+    if (verbose)
+        result.pushKV("parentblock", blockheaderToJSON(auxpow.parentBlock));
+    else
+    {
+        CDataStream ssParent(SER_NETWORK, PROTOCOL_VERSION);
+        ssParent << auxpow.parentBlock;
+        const std::string strHex = HexStr(ssParent);
+        result.pushKV("parentblock", strHex);
+    }
+
+    return result;
+}
+
 
 static RPCHelpMan getblockcount()
 {
@@ -552,9 +669,9 @@ static RPCHelpMan getblockheader()
 
     const CBlockIndex* pblockindex;
     const CBlockIndex* tip;
+    ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    LOCK(cs_main);
     {
-        ChainstateManager& chainman = EnsureAnyChainman(request.context);
-        LOCK(cs_main);
         pblockindex = chainman.m_blockman.LookupBlockIndex(hash);
         tip = chainman.ActiveChain().Tip();
     }
@@ -571,7 +688,11 @@ static RPCHelpMan getblockheader()
         return strHex;
     }
 
-    return blockheaderToJSON(tip, pblockindex);
+    auto result = blockheaderToJSON(tip, pblockindex);
+    if (pblockindex->GetBlockHeader().auxpow)
+        result.pushKV("auxpow", AuxpowToJSON(*pblockindex->GetBlockHeader().auxpow, fVerbose, chainman.ActiveChainstate()));
+
+    return result;
 },
     };
 }
@@ -755,7 +876,12 @@ static RPCHelpMan getblock()
         tx_verbosity = TxVerbosity::SHOW_DETAILS_AND_PREVOUT;
     }
 
-    return blockToJSON(chainman.m_blockman, block, tip, pblockindex, tx_verbosity);
+
+    auto result = blockToJSON(chainman.m_blockman, block, tip, pblockindex, tx_verbosity);
+    if (block.auxpow)
+        result.pushKV("auxpow", AuxpowToJSON(*block.auxpow, verbosity >= 1, chainman.ActiveChainstate()));
+
+   return result;
 },
     };
 }

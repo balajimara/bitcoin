@@ -64,6 +64,7 @@
 #include <rpc/register.h>
 #include <rpc/server.h>
 #include <rpc/util.h>
+#include <rpc/coordinaterpc.h>
 #include <scheduler.h>
 #include <script/sigcache.h>
 #include <shutdown.h>

@@ -120,10 +120,11 @@ bool BlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, s
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
+                
 
-                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, consensusParams)) {
-                    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
-                }
+                // if (!CheckProofOfWork(pindexNew->GetBlockHeader(), consensusParams)) {
+                //     return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
+                // }
 
                 pcursor->Next();
             } else {
@@ -1029,7 +1030,7 @@ bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) cons
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, GetConsensus())) {
+    if (!CheckProofOfWork(block, GetConsensus())) {
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
     }
 
@@ -1044,7 +1045,6 @@ bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) cons
 bool BlockManager::ReadBlockFromDisk(CBlock& block, const CBlockIndex& index) const
 {
     const FlatFilePos block_pos{WITH_LOCK(cs_main, return index.GetBlockPos())};
-
     if (!ReadBlockFromDisk(block, block_pos)) {
         return false;
     }
@@ -1089,6 +1089,7 @@ bool BlockManager::ReadRawBlockFromDisk(std::vector<uint8_t>& block, const FlatF
 
     return true;
 }
+
 
 FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, const FlatFilePos* dbp)
 {

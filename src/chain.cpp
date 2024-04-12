@@ -4,8 +4,29 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <node/blockstorage.h>
 #include <tinyformat.h>
 #include <util/time.h>
+
+/* Moved here from the header, because we need auxpow and the logic
+   becomes more involved.  */
+CBlockHeader CBlockIndex::GetBlockHeader() const
+{
+    CBlockHeader block;
+    block.nVersion = nVersion;
+
+    if (block.IsAuxpow()) {
+        block.auxpow = block.auxpow;
+    }
+
+    if (pprev)
+        block.hashPrevBlock = pprev->GetBlockHash();
+    block.hashMerkleRoot = hashMerkleRoot;
+    block.nTime = nTime;
+    block.nBits = nBits;
+    block.nNonce = nNonce;
+    return block;
+}
 
 std::string CBlockFileInfo::ToString() const
 {

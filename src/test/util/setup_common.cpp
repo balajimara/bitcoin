@@ -287,7 +287,7 @@ TestChain100Setup::TestChain100Setup(
         LOCK(::cs_main);
         assert(
             m_node.chainman->ActiveChain().Tip()->GetBlockHash().ToString() ==
-            "571d80a9967ae599cec0448b0b0ba1cfb606f584d8069bd7166b86854ba7a191");
+            "7977cf15377ee488d9d7d1b0a667e8b5a998adc59d48c320b52293b56fa6922f");
     }
 }
 
@@ -314,8 +314,10 @@ CBlock TestChain100Setup::CreateBlock(
         block.vtx.push_back(MakeTransactionRef(tx));
     }
     RegenerateCommitments(block, *Assert(m_node.chainman));
+    
+    auto& miningHeader = CAuxPow::initAuxPow(block);
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, m_node.chainman->GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(miningHeader.GetHash(), block.nBits, m_node.chainman->GetConsensus())) ++miningHeader.nNonce;
 
     return block;
 }
