@@ -86,9 +86,10 @@ protected:
 
 COutPoint MineBlock(const NodeContext& node, std::shared_ptr<CBlock>& block)
 {
-    while (!CheckProofOfWork(block->GetHash(), block->nBits, Params().GetConsensus())) {
-        ++block->nNonce;
-        assert(block->nNonce);
+    auto& miningHeader = CAuxPow::initAuxPow(*block);
+    while (!CheckProofOfWork(miningHeader.GetHash(), block->nBits, Params().GetConsensus())) {
+        ++miningHeader.nNonce;
+        assert(miningHeader.nNonce);
     }
 
     auto& chainman{*Assert(node.chainman)};

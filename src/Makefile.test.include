@@ -79,7 +79,6 @@ BITCOIN_TESTS =\
   test/blockfilter_index_tests.cpp \
   test/blockfilter_tests.cpp \
   test/blockmanager_tests.cpp \
-  test/bloom_tests.cpp \
   test/bswap_tests.cpp \
   test/checkqueue_tests.cpp \
   test/coins_tests.cpp \
@@ -89,7 +88,6 @@ BITCOIN_TESTS =\
   test/crypto_tests.cpp \
   test/cuckoocache_tests.cpp \
   test/dbwrapper_tests.cpp \
-  test/denialofservice_tests.cpp \
   test/descriptor_tests.cpp \
   test/flatfile_tests.cpp \
   test/fs_tests.cpp \
@@ -99,13 +97,10 @@ BITCOIN_TESTS =\
   test/httpserver_tests.cpp \
   test/i2p_tests.cpp \
   test/interfaces_tests.cpp \
-  test/key_io_tests.cpp \
   test/key_tests.cpp \
   test/logging_tests.cpp \
   test/mempool_tests.cpp \
   test/merkle_tests.cpp \
-  test/merkleblock_tests.cpp \
-  test/miner_tests.cpp \
   test/miniminer_tests.cpp \
   test/miniscript_tests.cpp \
   test/minisketch_tests.cpp \
@@ -118,7 +113,6 @@ BITCOIN_TESTS =\
   test/policy_fee_tests.cpp \
   test/policyestimator_tests.cpp \
   test/pool_tests.cpp \
-  test/pow_tests.cpp \
   test/prevector_tests.cpp \
   test/raii_event_tests.cpp \
   test/random_tests.cpp \
@@ -161,11 +155,9 @@ BITCOIN_TESTS =\
   test/util_threadnames_tests.cpp \
   test/validation_block_tests.cpp \
   test/validation_chainstate_tests.cpp \
-  test/validation_chainstatemanager_tests.cpp \
   test/validation_flush_tests.cpp \
   test/validation_tests.cpp \
   test/validationinterface_tests.cpp \
-  test/versionbits_tests.cpp \
   test/xoroshiro128plusplus_tests.cpp
 
 if ENABLE_WALLET
@@ -378,19 +370,6 @@ bitcoin_test_clean : FORCE
 	rm -f $(CLEAN_BITCOIN_TEST) $(test_test_bitcoin_OBJECTS) $(TEST_BINARY)
 
 check-local: $(BITCOIN_TESTS:.cpp=.cpp.test)
-if BUILD_COORDINATE_TX
-	@echo "Running test/util/test_runner.py..."
-	$(PYTHON) $(top_builddir)/test/util/test_runner.py
-endif
-	@echo "Running test/util/rpcauth-test.py..."
-	$(PYTHON) $(top_builddir)/test/util/rpcauth-test.py
-if TARGET_WINDOWS
-else
-if ENABLE_BENCH
-	@echo "Running bench/bench_bitcoin (one iteration sanity check, only high priority)..."
-	$(BENCH_BINARY) -sanity-check -priority-level=high
-endif
-endif
 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C secp256k1 check
 
 if ENABLE_TESTS

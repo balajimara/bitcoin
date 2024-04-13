@@ -51,8 +51,9 @@ static CBlock BuildBlockTestCase() {
 
     bool mutated;
     block.hashMerkleRoot = BlockMerkleRoot(block, &mutated);
+    auto& miningHeader = CAuxPow::initAuxPow(block);
     assert(!mutated);
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(miningHeader.GetHash(), block.nBits, Params().GetConsensus())) ++miningHeader.nNonce;
     return block;
 }
 
@@ -282,8 +283,9 @@ BOOST_AUTO_TEST_CASE(EmptyBlockRoundTripTest)
 
     bool mutated;
     block.hashMerkleRoot = BlockMerkleRoot(block, &mutated);
+    auto& miningHeader = CAuxPow::initAuxPow(block);
     assert(!mutated);
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(miningHeader.GetHash(), block.nBits, Params().GetConsensus())) ++miningHeader.nNonce;
 
     // Test simple header round-trip with only coinbase
     {
