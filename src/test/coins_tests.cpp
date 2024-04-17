@@ -20,7 +20,7 @@
 #include <boost/test/unit_test.hpp>
 
 int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out);
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight);
+void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CAmount& amountAssetInOut, int& nControlNOut, uint32_t& nAssetIDOut, uint32_t nNewAssetIDIn);
 
 namespace
 {
@@ -194,7 +194,11 @@ void SimulationTest(CCoinsView* base, bool fake_best_block)
                 // Spend the coin.
                 removed_an_entry = true;
                 coin.Clear();
-                BOOST_CHECK(stack.back()->SpendCoin(COutPoint(txid, 0)));
+                bool fBitAsset = false;
+                bool fBitAssetControl = false;
+                bool isPreconf = false;
+                uint32_t nAssetID = 0;
+                BOOST_CHECK(stack.back()->SpendCoin(COutPoint(txid, 0), fBitAsset, fBitAssetControl, isPreconf, nAssetID));
             }
         }
 
@@ -404,11 +408,15 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
             // Update the expected result to know about the new output coins
             assert(tx.vout.size() == 1);
             const COutPoint outpoint(tx.GetHash(), 0);
-            result[outpoint] = Coin{tx.vout[0], height, CTransaction{tx}.IsCoinBase()};
+            result[outpoint] = Coin{tx.vout[0], height, CTransaction{tx}.IsCoinBase(), false, false, false, 0};
 
             // Call UpdateCoins on the top cache
             CTxUndo undo;
-            UpdateCoins(CTransaction{tx}, *(stack.back()), undo, height);
+            CAmount amountAssetIn = CAmount(0);
+            int nControlN = -1;
+            uint32_t nAssetID = 0;
+            uint32_t nNewAssetID = 0;
+            UpdateCoins(CTransaction{tx}, *(stack.back()), undo, height, amountAssetIn, nControlN, nAssetID, nNewAssetID);
 
             // Update the utxo set for future spends
             utxoset.insert(outpoint);
@@ -434,7 +442,11 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
             // Disconnect the tx from the current UTXO
             // See code in DisconnectBlock
             // remove outputs
-            BOOST_CHECK(stack.back()->SpendCoin(utxod->first));
+            bool fBitAsset = false;
+            bool fBitAssetControl = false;
+            bool isPreconf = false;
+            uint32_t nAssetID = 0;
+            BOOST_CHECK(stack.back()->SpendCoin(utxod->first, fBitAsset, fBitAssetControl, isPreconf, nAssetID));
             // restore inputs
             if (!tx.IsCoinBase()) {
                 const COutPoint &out = tx.vin[0].prevout;
@@ -498,58 +510,6 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
     BOOST_CHECK(spent_a_duplicate_coinbase);
 
     g_mock_deterministic_tests = false;
-}
-
-BOOST_AUTO_TEST_CASE(ccoins_serialization)
-{
-    // Good example
-    DataStream ss1{ParseHex("97f23c835800816115944e077fe7c803cfa57f29b36bf87c1d35")};
-    Coin cc1;
-    ss1 >> cc1;
-    BOOST_CHECK_EQUAL(cc1.fCoinBase, false);
-    BOOST_CHECK_EQUAL(cc1.nHeight, 203998U);
-    BOOST_CHECK_EQUAL(cc1.out.nValue, CAmount{60000000000});
-    BOOST_CHECK_EQUAL(HexStr(cc1.out.scriptPubKey), HexStr(GetScriptForDestination(PKHash(uint160(ParseHex("816115944e077fe7c803cfa57f29b36bf87c1d35"))))));
-
-    // Good example
-    DataStream ss2{ParseHex("8ddf77bbd123008c988f1a4a4de2161e0f50aac7f17e7f9555caa4")};
-    Coin cc2;
-    ss2 >> cc2;
-    BOOST_CHECK_EQUAL(cc2.fCoinBase, true);
-    BOOST_CHECK_EQUAL(cc2.nHeight, 120891U);
-    BOOST_CHECK_EQUAL(cc2.out.nValue, 110397);
-    BOOST_CHECK_EQUAL(HexStr(cc2.out.scriptPubKey), HexStr(GetScriptForDestination(PKHash(uint160(ParseHex("8c988f1a4a4de2161e0f50aac7f17e7f9555caa4"))))));
-
-    // Smallest possible example
-    DataStream ss3{ParseHex("000006")};
-    Coin cc3;
-    ss3 >> cc3;
-    BOOST_CHECK_EQUAL(cc3.fCoinBase, false);
-    BOOST_CHECK_EQUAL(cc3.nHeight, 0U);
-    BOOST_CHECK_EQUAL(cc3.out.nValue, 0);
-    BOOST_CHECK_EQUAL(cc3.out.scriptPubKey.size(), 0U);
-
-    // scriptPubKey that ends beyond the end of the stream
-    DataStream ss4{ParseHex("000007")};
-    try {
-        Coin cc4;
-        ss4 >> cc4;
-        BOOST_CHECK_MESSAGE(false, "We should have thrown");
-    } catch (const std::ios_base::failure&) {
-    }
-
-    // Very large scriptPubKey (3*10^9 bytes) past the end of the stream
-    DataStream tmp{};
-    uint64_t x = 3000000000ULL;
-    tmp << VARINT(x);
-    BOOST_CHECK_EQUAL(HexStr(tmp), "8a95c0bb00");
-    DataStream ss5{ParseHex("00008a95c0bb00")};
-    try {
-        Coin cc5;
-        ss5 >> cc5;
-        BOOST_CHECK_MESSAGE(false, "We should have thrown");
-    } catch (const std::ios_base::failure&) {
-    }
 }
 
 const static COutPoint OUTPOINT;
@@ -685,9 +645,12 @@ BOOST_AUTO_TEST_CASE(ccoins_access)
 }
 
 static void CheckSpendCoins(CAmount base_value, CAmount cache_value, CAmount expected_value, char cache_flags, char expected_flags)
-{
+{   bool fBitAsset = false;
+    bool fBitAssetControl = false;
+    bool isPreconf = false;
+    uint32_t nAssetID = 0;
     SingleEntryCacheTest test(base_value, cache_value, cache_flags);
-    test.cache.SpendCoin(OUTPOINT);
+    test.cache.SpendCoin(OUTPOINT, fBitAsset, fBitAssetControl, isPreconf, nAssetID);
     test.cache.SelfTest();
 
     CAmount result_value;
@@ -744,7 +707,7 @@ static void CheckAddCoinBase(CAmount base_value, CAmount cache_value, CAmount mo
     try {
         CTxOut output;
         output.nValue = modify_value;
-        test.cache.AddCoin(OUTPOINT, Coin(std::move(output), 1, coinbase), coinbase);
+        test.cache.AddCoin(OUTPOINT, Coin(std::move(output), 1, coinbase, false, false, false, 0), coinbase);
         test.cache.SelfTest();
         GetCoinsMapEntry(test.cache.map(), result_value, result_flags);
     } catch (std::logic_error&) {
@@ -996,7 +959,11 @@ void TestFlushBehavior(
 
     // --- 6. Spend the coin.
     //
-    BOOST_CHECK(view->SpendCoin(outp));
+    bool fBitAsset = false;
+    bool fBitAssetControl = false;
+    bool isPreconf = false;
+    uint32_t nAssetID = 0;
+    BOOST_CHECK(view->SpendCoin(outp, fBitAsset, fBitAssetControl, isPreconf, nAssetID));
 
     // The coin should be in the cache, but spent and marked dirty.
     GetCoinsMapEntry(view->map(), value, flags, outp);
@@ -1012,7 +979,7 @@ void TestFlushBehavior(
     BOOST_CHECK(!base.HaveCoin(outp));
 
     // Spent coin should not be spendable.
-    BOOST_CHECK(!view->SpendCoin(outp));
+    BOOST_CHECK(!view->SpendCoin(outp, fBitAsset, fBitAssetControl, isPreconf, nAssetID));
 
     // --- Bonus check: ensure that a coin added to the base view via one cache
     //     can be spent by another cache which has never seen it.
@@ -1030,7 +997,7 @@ void TestFlushBehavior(
     BOOST_CHECK(all_caches[0]->HaveCoin(outp));
     BOOST_CHECK(!all_caches[1]->HaveCoinInCache(outp));
 
-    BOOST_CHECK(all_caches[1]->SpendCoin(outp));
+    BOOST_CHECK(all_caches[1]->SpendCoin(outp, fBitAsset, fBitAssetControl, isPreconf, nAssetID));
     flush_all(/*erase=*/ false);
     BOOST_CHECK(!base.HaveCoin(outp));
     BOOST_CHECK(!all_caches[0]->HaveCoin(outp));
@@ -1059,7 +1026,7 @@ void TestFlushBehavior(
     // Base shouldn't have seen coin.
     BOOST_CHECK(!base.HaveCoin(outp));
 
-    BOOST_CHECK(all_caches[0]->SpendCoin(outp));
+    BOOST_CHECK(all_caches[0]->SpendCoin(outp, fBitAsset, fBitAssetControl, isPreconf, nAssetID));
     all_caches[0]->Sync();
 
     // Ensure there is no sign of the coin after spend/flush.

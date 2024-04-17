@@ -129,6 +129,12 @@ BITCOIN_CORE_H = \
   bip324.h \
   blockencodings.h \
   blockfilter.h \
+  anduro_deposit.h \
+  coordinate_assets.h \
+  coordinate_mempool_entry.h \
+  coordinate_preconf.h \
+  invalid_tx.h \
+  signed_txindex.h \
   chain.h \
   chainparams.h \
   chainparamsbase.h \
@@ -264,6 +270,7 @@ BITCOIN_CORE_H = \
   rpc/server.h \
   rpc/server_util.h \
   rpc/util.h \
+  rpc/preconf_mempool.h \
   rpc/coordinaterpc.h \
   scheduler.h \
   script/descriptor.h \
@@ -446,9 +453,11 @@ libbitcoin_node_a_SOURCES = \
   policy/settings.cpp \
   pow.cpp \
   rest.cpp \
+  rpc/auxpow_miner.cpp \
   rpc/blockchain.cpp \
   rpc/fees.cpp \
   rpc/mempool.cpp \
+  rpc/preconf_mempool.cpp \
   rpc/coordinaterpc.cpp \
   rpc/mining.cpp \
   rpc/net.cpp \
@@ -642,6 +651,8 @@ libbitcoin_consensus_a_SOURCES = \
   hash.cpp \
   hash.h \
   prevector.h \
+  coordinate/signed_block.cpp \
+  coordinate/signed_block.h \
   primitives/block.cpp \
   primitives/block.h \
   primitives/pureheader.cpp \
@@ -675,6 +686,13 @@ libbitcoin_common_a_SOURCES = \
   addresstype.cpp \
   base58.cpp \
   bech32.cpp \
+  anduro_deposit.cpp \
+  coordinate/coordinate_assets.cpp \
+  coordinate/coordinate_mempool_entry.cpp \
+  coordinate/coordinate_preconf.cpp \
+  coordinate/invalid_tx.cpp \
+  coordinate/signed_txindex.cpp \
+  anduro_validator.cpp \
   chainparams.cpp \
   coins.cpp \
   common/args.cpp \
@@ -933,6 +951,13 @@ libbitcoinkernel_la_SOURCES = \
   kernel/bitcoinkernel.cpp \
   arith_uint256.cpp \
   auxpow.cpp \
+  anduro_deposit.cpp \
+  coordinate/coordinate_assets.cpp \
+  coordinate/coordinate_mempool_entry.cpp \
+  coordinate/coordinate_preconf.cpp \
+  coordinate/invalid_tx.cpp \
+  coordinate/signed_txindex.cpp \
+  anduro_validator.cpp \
   chain.cpp \
   clientversion.cpp \
   coins.cpp \

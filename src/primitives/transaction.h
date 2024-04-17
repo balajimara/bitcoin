@@ -31,6 +31,9 @@
  * or with `ADDRV2_FORMAT`.
  */
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
+static const int TRANSACTION_PRECONF_VERSION = 9;
+static const int TRANSACTION_COORDINATE_ASSET_CREATE_VERSION = 10;
+static const int TRANSACTION_COORDINATE_ASSET_TRANSFER_VERSION = 11;
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
@@ -219,6 +222,13 @@ inline void UnserializeTransaction(TxType& tx, Stream& s) {
     const bool fAllowWitness = !(GetVersionOrProtocol(s) & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     s >> tx.nVersion;
+    if (tx.nVersion == TRANSACTION_COORDINATE_ASSET_CREATE_VERSION) {
+        s >> tx.assetType;
+        s >> tx.ticker;
+        s >> tx.headline;
+        s >> tx.payload;
+        s >> tx.payloadData;
+    }
     unsigned char flags = 0;
     tx.vin.clear();
     tx.vout.clear();
@@ -258,6 +268,13 @@ inline void SerializeTransaction(const TxType& tx, Stream& s) {
     const bool fAllowWitness = !(GetVersionOrProtocol(s) & SERIALIZE_TRANSACTION_NO_WITNESS);
 
     s << tx.nVersion;
+    if (tx.nVersion == TRANSACTION_COORDINATE_ASSET_CREATE_VERSION) {
+        s << tx.assetType;
+        s << tx.ticker;
+        s << tx.headline;
+        s << tx.payload;
+        s << tx.payloadData;
+    }
     unsigned char flags = 0;
     // Consistency check
     if (fAllowWitness) {
@@ -306,6 +323,15 @@ public:
     const std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
     const int32_t nVersion;
+    // asset Type
+    // 0 - Fungible
+    // 1 - Non-Fungible
+    // 2 - Non-Fungible collection
+    const int32_t assetType;
+    const std::string ticker;
+    const std::string headline;
+    const uint256 payload;
+    mutable std::string payloadData;
     const uint32_t nLockTime;
 
 private:
@@ -383,6 +409,11 @@ struct CMutableTransaction
     std::vector<CTxOut> vout;
     int32_t nVersion;
     uint32_t nLockTime;
+    int32_t assetType;
+    std::string ticker;
+    std::string headline;
+    uint256 payload;
+    mutable std::string payloadData;
 
     explicit CMutableTransaction();
     explicit CMutableTransaction(const CTransaction& tx);

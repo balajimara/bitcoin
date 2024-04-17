@@ -363,7 +363,30 @@ static RPCHelpMan getrawtransaction()
     }
 
     uint256 hash_block;
-    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, hash_block, chainman.m_blockman);
+
+    CTransactionRef mined_tx = GetTransaction(blockindex, node.mempool.get(), hash, hash_block, chainman.m_blockman);
+    if(!mined_tx) {
+        mined_tx = GetTransaction(blockindex, node.preconfmempool.get(), hash, hash_block, chainman.m_blockman, true);
+        if(!mined_tx) {
+            SignedTxindex signedTxIndex;
+            chainman.ActiveChainstate().psignedblocktree->getTxPosition(hash,signedTxIndex);
+
+            if(!signedTxIndex.signedBlockHash.IsNull()) {
+                CChain& active_chain = chainman.ActiveChain();
+                CBlock block;
+                if (chainman.m_blockman.ReadBlockFromDisk(block, *active_chain[signedTxIndex.blockIndex])) {
+                    for (const SignedBlock& preconfBlockItem : block.preconfBlock) {
+                        if(preconfBlockItem.GetHash() == signedTxIndex.signedBlockHash) {
+                            mined_tx = preconfBlockItem.vtx[signedTxIndex.pos];
+                            break;
+                        }
+                    }
+                } 
+            }
+        }
+    }
+    const CTransactionRef tx = mined_tx;
+
     if (!tx) {
         std::string errmsg;
         if (blockindex) {

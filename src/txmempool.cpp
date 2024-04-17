@@ -412,6 +412,7 @@ CTxMemPool::CTxMemPool(const Options& opts)
       m_max_datacarrier_bytes{opts.max_datacarrier_bytes},
       m_require_standard{opts.require_standard},
       m_full_rbf{opts.full_rbf},
+      is_preconf{opts.is_preconf},
       m_limits{opts.limits}
 {
 }
@@ -496,7 +497,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
     // even if not directly reported below.
     uint64_t mempool_sequence = GetAndIncrementSequence();
 
-    if (reason != MemPoolRemovalReason::BLOCK) {
+    if (reason != MemPoolRemovalReason::BLOCK && reason != MemPoolRemovalReason::SIGNEDBLOCK) {
         // Notify clients that a transaction has been removed from the mempool
         // for any reason except being included in a block. Clients interested
         // in transactions included in blocks can subscribe to the BlockConnected
@@ -664,6 +665,26 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
     blockSinceLastRollingFeeBump = true;
 }
 
+
+void CTxMemPool::removeForPreconfBlock(const std::vector<CTransactionRef>& vtx)
+{
+    AssertLockHeld(cs);
+    for (const auto& tx : vtx)
+    {
+        txiter it = mapTx.find(tx->GetHash());
+        if (it != mapTx.end()) {
+            setEntries stage;
+            stage.insert(it);
+            RemoveStaged(stage, true, MemPoolRemovalReason::SIGNEDBLOCK);
+        }
+        removeConflicts(*tx);
+        ClearPrioritisation(tx->GetHash());
+    }
+
+}
+
+
+
 void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendheight) const
 {
     if (m_check_ratio == 0) return;
@@ -753,8 +774,21 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
         CAmount txfee = 0;
         assert(!tx.IsCoinBase());
         assert(Consensus::CheckTxInputs(tx, dummy_state, mempoolDuplicate, spendheight, txfee));
-        for (const auto& input: tx.vin) mempoolDuplicate.SpendCoin(input.prevout);
-        AddCoins(mempoolDuplicate, tx, std::numeric_limits<int>::max());
+        CAmount amountAssetIn = CAmount(0);
+        int nControlN = -1;
+        for (size_t x = 0; x < tx.vin.size(); x++) {
+            bool fBitAsset = false;
+            bool fBitAssetControl = false;
+            bool isPreconf = is_preconf ? true : false;
+            uint32_t nAssetID = 0;
+            Coin coin;
+            mempoolDuplicate.SpendCoin(tx.vin[x].prevout, fBitAsset, fBitAssetControl, isPreconf, nAssetID, &coin);
+            if (fBitAsset)
+                amountAssetIn += coin.out.nValue;
+            if (fBitAssetControl)
+                nControlN = x;
+        } 
+        AddCoins(mempoolDuplicate, tx, std::numeric_limits<int>::max(), amountAssetIn, nControlN, true);
     }
     for (auto it = mapNextTx.cbegin(); it != mapNextTx.cend(); it++) {
         uint256 hash = it->second->GetHash();
@@ -1007,7 +1041,7 @@ bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     CTransactionRef ptx = mempool.get(outpoint.hash);
     if (ptx) {
         if (outpoint.n < ptx->vout.size()) {
-            coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false);
+            coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false, false, false, false, 0);
             m_non_base_coins.emplace(outpoint);
             return true;
         } else {
@@ -1020,7 +1054,7 @@ bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
 void CCoinsViewMemPool::PackageAddTransaction(const CTransactionRef& tx)
 {
     for (unsigned int n = 0; n < tx->vout.size(); ++n) {
-        m_temp_added.emplace(COutPoint(tx->GetHash(), n), Coin(tx->vout[n], MEMPOOL_HEIGHT, false));
+        m_temp_added.emplace(COutPoint(tx->GetHash(), n), Coin(tx->vout[n], MEMPOOL_HEIGHT, false, false, false, false, 0));
         m_non_base_coins.emplace(tx->GetHash(), n);
     }
 }
@@ -1069,6 +1103,24 @@ int CTxMemPool::Expire(std::chrono::seconds time)
     RemoveStaged(stage, false, MemPoolRemovalReason::EXPIRY);
     return stage.size();
 }
+
+int CTxMemPool::PreconfExpire(uint64_t expireHeight)
+{
+    AssertLockHeld(cs);
+    indexed_transaction_set::index<expiry_height>::type::iterator it = mapTx.get<expiry_height>().begin();
+    setEntries toremove;
+    while (it != mapTx.get<expiry_height>().end() && it->GetExpiredHeight() < expireHeight) {
+        toremove.insert(mapTx.project<0>(it));
+        it++;
+    }
+    setEntries stage;
+    for (txiter removeit : toremove) {
+        CalculateDescendants(removeit, stage);
+    }
+    RemoveStaged(stage, false, MemPoolRemovalReason::EXPIRY);
+    return stage.size();
+}
+
 
 void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, bool validFeeEstimate)
 {

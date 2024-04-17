@@ -36,7 +36,7 @@ void auxMiningCheck(const node::NodeContext& node)
     throw JSONRPCError (RPC_CLIENT_NOT_CONNECTED,
                         "Coordinate is not connected!");
 
-  if (chainman.ActiveChainstate ().IsInitialBlockDownload ()
+  if (chainman.IsInitialBlockDownload ()
         && !Params ().MineBlocksOnDemand ())
     throw JSONRPCError (RPC_CLIENT_IN_INITIAL_DOWNLOAD,
                         "Coordinate is downloading blocks...");

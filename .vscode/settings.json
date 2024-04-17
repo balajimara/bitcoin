@@ -85,6 +85,7 @@
         "random": "cpp",
         "algorithm": "cpp",
         "cassert": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "functional": "cpp"
     }
 }

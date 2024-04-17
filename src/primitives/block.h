@@ -12,6 +12,7 @@
 #include <uint256.h>
 #include <util/time.h>
 #include <auxpow.h>
+#include <coordinate/signed_block.h>
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -71,6 +72,9 @@ class CBlock : public CBlockHeader
 public:
     // network and disk
     std::vector<CTransactionRef> vtx;
+    std::vector<SignedBlock> preconfBlock;
+    std::vector<uint256> invalidTx;
+    uint256 reconsiliationBlock;
 
     // memory only
     mutable bool fChecked;
@@ -89,12 +93,18 @@ public:
     SERIALIZE_METHODS(CBlock, obj)
     {
         READWRITE(AsBase<CBlockHeader>(obj), obj.vtx);
+        READWRITE(obj.invalidTx);
+        READWRITE(obj.preconfBlock);
+        READWRITE(obj.reconsiliationBlock);
     }
 
     void SetNull()
     {
         CBlockHeader::SetNull();
         vtx.clear();
+        invalidTx.clear();
+        preconfBlock.clear();
+        reconsiliationBlock.SetNull();
         fChecked = false;
     }
 

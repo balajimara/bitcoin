@@ -20,11 +20,13 @@ struct CacheSizes;
 
 struct ChainstateLoadOptions {
     CTxMemPool* mempool{nullptr};
+    CTxMemPool* preconfmempool{nullptr};
     bool block_tree_db_in_memory{false};
     bool coins_db_in_memory{false};
     bool reindex{false};
     bool reindex_chainstate{false};
     bool prune{false};
+    bool asset_prune{false};
     //! Setting require_full_verification to true will require all checks at
     //! check_level (below) to succeed for loading to succeed. Setting it to
     //! false will skip checks if cache is not big enough to run them, so may be

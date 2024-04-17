@@ -181,6 +181,14 @@ void TxToUniv(const CTransaction& tx, const uint256& block_hash, UniValue& entry
     entry.pushKV("vsize", (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR);
     entry.pushKV("weight", GetTransactionWeight(tx));
     entry.pushKV("locktime", (int64_t)tx.nLockTime);
+    if(tx.nVersion == TRANSACTION_COORDINATE_ASSET_CREATE_VERSION) {
+        entry.pushKV("assettype",tx.assetType);
+        entry.pushKV("ticker",tx.ticker);
+        entry.pushKV("headline",tx.headline);
+        entry.pushKV("payload",tx.payload.ToString());
+        entry.pushKV("payloaddata",tx.payloadData);
+    }
+
 
     UniValue vin{UniValue::VARR};
 
@@ -213,8 +221,11 @@ void TxToUniv(const CTransaction& tx, const uint256& block_hash, UniValue& entry
         if (have_undo) {
             const Coin& prev_coin = txundo->vprevout[i];
             const CTxOut& prev_txout = prev_coin.out;
+            if(!(tx.nVersion == TRANSACTION_COORDINATE_ASSET_CREATE_VERSION && prev_coin.IsBitAssetController())) {
+               amt_total_in += prev_txout.nValue;
+            } 
 
-            amt_total_in += prev_txout.nValue;
+
 
             if (verbosity == TxVerbosity::SHOW_DETAILS_AND_PREVOUT) {
                 UniValue o_script_pub_key(UniValue::VOBJ);
@@ -248,7 +259,17 @@ void TxToUniv(const CTransaction& tx, const uint256& block_hash, UniValue& entry
         vout.push_back(out);
 
         if (have_undo) {
-            amt_total_out += txout.nValue;
+            if(tx.nVersion == TRANSACTION_COORDINATE_ASSET_CREATE_VERSION) {
+                if(i > 1) {
+                    amt_total_out += txout.nValue;
+                }
+            } else if(tx.nVersion == TRANSACTION_PRECONF_VERSION) {
+                 if(i > 0) {
+                    amt_total_out += txout.nValue;
+                 }
+            } else {
+                amt_total_out += txout.nValue;
+            }
         }
     }
     entry.pushKV("vout", vout);

@@ -51,7 +51,7 @@ public:
      * param@[in]   num_bytes   The vsize of a transaction, in vbytes
      */
     CFeeRate(const CAmount& nFeePaid, uint32_t num_bytes);
-
+    CAmount GetPreConfFee(uint32_t num_bytes, const CAmount& preconfMinFee) const;
     /**
      * Return the fee in satoshis for the given vsize in vbytes.
      * If the calculated fee would have fractional satoshis, then the

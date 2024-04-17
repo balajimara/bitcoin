@@ -23,9 +23,11 @@
 #include <timedata.h>
 #include <util/moneystr.h>
 #include <validation.h>
-
+#include <util/strencodings.h>
 #include <algorithm>
 #include <utility>
+#include <anduro_deposit.h>
+#include <coordinate/coordinate_preconf.h>
 
 namespace node {
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
@@ -152,13 +154,117 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     m_last_block_num_txs = nBlockTx;
     m_last_block_weight = nBlockWeight;
 
-    // Create coinbase transaction.
+    // increasing coinbase size for refunds
+    CAmount minerFee = 0;
+    CAmount totalPreconfFee = 0;
+    CAmount federationFee = 0;
+    if(nHeight > 3) {
+        minerFee = getFeeForBlock(m_chainstate.m_chainman, nHeight);
+        totalPreconfFee = getPreconfFeeForBlock(m_chainstate.m_chainman, nHeight);
+        if(totalPreconfFee > 0) {
+            federationFee = std::ceil(totalPreconfFee * 0.20);
+            minerFee = minerFee + (totalPreconfFee - federationFee);
+        }
+    }
+    int resize = 3;
     CMutableTransaction coinbaseTx;
-    coinbaseTx.vin.resize(1);
-    coinbaseTx.vin[0].prevout.SetNull();
-    coinbaseTx.vout.resize(1);
-    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+    if(Params().GetChainType() != ChainType::REGTEST) {
+        pblock->invalidTx = getInvalidTx(m_chainstate.m_chainman);
+        pblock->reconsiliationBlock = getReconsiledBlock(m_chainstate.m_chainman);
+        std::vector<SignedBlock> nextPreconfs = getFinalizedSignedBlocks();
+        for (size_t i = 0; i < nextPreconfs.size(); i++)
+        {
+        pblock->preconfBlock.push_back(nextPreconfs[i]);
+        }
+
+        
+        // get next block presigned data
+        std::vector<AnduroTxOut> pending_deposits = listPendingDepositTransaction(nHeight);
+        LogPrintf("peg queue count %i\n", pending_deposits.size());
+        // prevent to get block template if not presigned signature available for next block
+        if(pending_deposits.size() == 0) {
+            LogPrintf("peg queue unavailable\n");
+            return nullptr;
+        }
+
+        // increase transaction out size based on available pegin 
+        if(isSpecialTxoutValid(pending_deposits,m_chainstate.m_chainman)) {
+            int tIndex = 1;
+            for (const AnduroTxOut& tx_out : pending_deposits) {
+                if (tx_out.nValue > 0) {
+                    resize = resize + 1;
+                    tIndex = tIndex + 1;
+                }
+            }
+        } else {
+            LogPrintf("special txsetout invalid \n");
+            return nullptr;
+        }
+        // increase transaction out size by one for include witness
+        resize = resize + 1;
+
+        if(pending_deposits.size() == 1 &&  pending_deposits[0].nValue == 0) {
+            // if no new pegin included, then existing anduro key added in next block 
+            pblock->currentKeys = getCurrentKeys(m_chainstate.m_chainman);
+            pblock->nextIndex = getNextIndex(m_chainstate.m_chainman);
+        } else {
+            // if new pegin included, then existing anduro key replaced in next block 
+            AnduroTxOut& tx_out = pending_deposits[0];
+            pblock->currentKeys = tx_out.currentKeys;
+            pblock->nextIndex = tx_out.nextIndex;
+        }
+
+        coinbaseTx.vin.resize(1);
+        coinbaseTx.vin[0].prevout.SetNull();
+        coinbaseTx.vout.resize(resize);
+        coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+        coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+
+
+        int oIncr = 1;
+
+        if(pending_deposits.size() == 1 &&  pending_deposits[0].nValue == 0) {
+        } else {
+            // include new pegin in transaction output
+            for (const AnduroTxOut& tx_out : pending_deposits) {
+                coinbaseTx.vout[oIncr].nValue = tx_out.nValue;
+                coinbaseTx.vout[oIncr].scriptPubKey =tx_out.scriptPubKey;
+                oIncr = oIncr + 1;
+            }
+        }
+
+        // miner fee for preconf
+        coinbaseTx.vout[oIncr].scriptPubKey = getMinerScript(m_chainstate.m_chainman, nHeight);
+        coinbaseTx.vout[oIncr].nValue = minerFee;
+        oIncr = oIncr + 1;
+
+        // federation fee for preconf
+        coinbaseTx.vout[oIncr].scriptPubKey = getFederationScript(m_chainstate.m_chainman, nHeight);
+        coinbaseTx.vout[oIncr].nValue = federationFee;
+        oIncr = oIncr + 1;
+        
+        // including anduro signature information
+        std::vector<unsigned char> data = ParseHex(pending_deposits[0].witness);
+        CTxOut out(0, CScript() << OP_RETURN << data);
+        coinbaseTx.vout[oIncr] = out;
+
+    } else {
+        pblock->currentKeys = getCurrentKeys(m_chainstate.m_chainman);
+        pblock->nextIndex = getNextIndex(m_chainstate.m_chainman);
+        coinbaseTx.vin.resize(1);
+        coinbaseTx.vin[0].prevout.SetNull();
+        coinbaseTx.vout.resize(resize);
+        coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+        coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        int oIncr = 1;
+        // miner fee for preconf
+        coinbaseTx.vout[oIncr].scriptPubKey = getMinerScript(m_chainstate.m_chainman, nHeight);
+        coinbaseTx.vout[oIncr].nValue = minerFee;
+        oIncr = oIncr + 1;
+        // federation fee for preconf
+        coinbaseTx.vout[oIncr].scriptPubKey = getFederationScript(m_chainstate.m_chainman, nHeight);
+        coinbaseTx.vout[oIncr].nValue = federationFee;
+    }
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);

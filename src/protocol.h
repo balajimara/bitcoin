@@ -116,6 +116,9 @@ extern const char* GETHEADERS;
  * The tx message transmits a single transaction.
  */
 extern const char* TX;
+
+extern const char* PRETX;
+
 /**
  * The headers message sends one or more block headers to a node which
  * previously requested certain headers with a getheaders message.
@@ -138,6 +141,15 @@ extern const char* GETADDR;
  *   Only available with service bit NODE_BLOOM, see also BIP111.
  */
 extern const char* MEMPOOL;
+
+extern const char* PREBLOCKSIGNREQUEST;
+
+extern const char* PREBLOCKSIGNREPONSE;
+
+extern const char* PRECONFSIGNATUREPUSH;
+
+extern const char* PRECONFFINALIZEPUSH;
+
 /**
  * The ping message is sent periodically to help confirm that the receiving
  * peer is still connected.

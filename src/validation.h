@@ -248,7 +248,7 @@ struct PackageMempoolAcceptResult
  * @returns a MempoolAcceptResult indicating whether the transaction was accepted/rejected with reason.
  */
 MempoolAcceptResult AcceptToMemoryPool(Chainstate& active_chainstate, const CTransactionRef& tx,
-                                       int64_t accept_time, bool bypass_limits, bool test_accept)
+                                       int64_t accept_time, bool bypass_limits, bool test_accept, bool is_preconf=false)
     EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /**
@@ -486,6 +486,10 @@ protected:
     //! Only the active chainstate has a mempool.
     CTxMemPool* m_mempool;
 
+    //! Optional preconf mempool that is kept in sync with the chain.
+    //! Only the active chainstate has a preconf mempool.
+    CTxMemPool* m_preconf_mempool;
+
     //! Manages the UTXO set, which is a reflection of the contents of `m_chain`.
     std::unique_ptr<CoinsViews> m_coins_views;
 
@@ -506,6 +510,12 @@ protected:
     const CBlockIndex* m_cached_snapshot_base GUARDED_BY(::cs_main) {nullptr};
 
 public:
+
+    std::unique_ptr<CoordinateAssetDB> passettree;
+
+    std::unique_ptr<SignedBlocksDB> psignedblocktree;
+
+    bool isAssetPrune;
     //! Reference to a BlockManager instance which itself is shared across all
     //! Chainstate instances.
     node::BlockManager& m_blockman;
@@ -517,6 +527,7 @@ public:
 
     explicit Chainstate(
         CTxMemPool* mempool,
+        CTxMemPool* preconf_mempool,
         node::BlockManager& blockman,
         ChainstateManager& chainman,
         std::optional<uint256> from_snapshot_blockhash = std::nullopt);
@@ -542,6 +553,14 @@ public:
     //! Initialize the in-memory coins cache (to be done after the health of the on-disk database
     //! is verified).
     void InitCoinsCache(size_t cache_size_bytes) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! Initialize the in-memory coins cache (to be done after the health of the on-disk database
+    //! is verified).
+    void InitAssetCache() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! Initialize the in-memory coins cache (to be done after the health of the on-disk database
+    //! is verified).
+    void InitSignedBlockCache() EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! @returns whether or not the CoinsViews object has been fully initialized and we can
     //!          safely flush this object to disk.
@@ -585,6 +604,9 @@ public:
         return *Assert(m_coins_views->m_cacheview);
     }
 
+    CCoinsViewCache& UpdatedCoinsTip(CCoinsViewCache& view, int blockHeight) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+
     //! @returns A reference to the on-disk UTXO set database.
     CCoinsViewDB& CoinsDB() EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
     {
@@ -598,6 +620,12 @@ public:
         return m_mempool;
     }
 
+    //! @returns A pointer to the mempool.
+    CTxMemPool* GetPreConfMempool()
+    {
+        return m_preconf_mempool;
+    }
+
     //! @returns A reference to a wrapped view of the in-memory UTXO set that
     //!     handles disk read errors gracefully.
     CCoinsViewErrorCatcher& CoinsErrorCatcher() EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
@@ -608,6 +636,11 @@ public:
 
     //! Destructs all objects related to accessing the UTXO set.
     void ResetCoinsViews() { m_coins_views.reset(); }
+
+
+    void ResetAssetCache() { passettree.reset(); }
+
+    void ResetSignedBlockCache() { psignedblocktree.reset(); }
 
     //! Does this chainstate have a UTXO set attached?
     bool HasCoinsViews() const { return (bool)m_coins_views; }
@@ -682,6 +715,8 @@ public:
     // Apply the effects of a block disconnection on the UTXO set.
     bool DisconnectTip(BlockValidationState& state, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_mempool->cs);
 
+
+    bool ConnectSignedBlock(const SignedBlock& block) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     // Manual block validity manipulation:
     /** Mark a block as precious and reorganize.
      *
@@ -1012,7 +1047,7 @@ public:
     //!
     //! @param[in] mempool              The mempool to pass to the chainstate
     //                                  constructor
-    Chainstate& InitializeChainstate(CTxMemPool* mempool) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    Chainstate& InitializeChainstate(CTxMemPool* mempool, CTxMemPool* preconfmempool) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     //! Get all chainstates currently being used.
     std::vector<Chainstate*> GetAll();
@@ -1186,7 +1221,7 @@ public:
      * @param[in]  tx              The transaction to submit for mempool acceptance.
      * @param[in]  test_accept     When true, run validation checks but don't submit to mempool.
      */
-    [[nodiscard]] MempoolAcceptResult ProcessTransaction(const CTransactionRef& tx, bool test_accept=false)
+    [[nodiscard]] MempoolAcceptResult ProcessTransaction(const CTransactionRef& tx, bool test_accept=false, bool is_preconf=false)
         EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     //! Load the block tree and coins database from disk, initializing state if we're running with -reindex

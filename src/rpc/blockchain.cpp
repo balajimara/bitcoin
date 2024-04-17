@@ -240,10 +240,42 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
 UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIndex* tip, const CBlockIndex* blockindex, TxVerbosity verbosity)
 {
     UniValue result = blockheaderToJSON(tip, blockindex);
-
+    result.pushKV("currentkeys", block.currentKeys.empty() ? "" : block.currentKeys);
+    result.pushKV("nextindex", block.nextIndex);
     result.pushKV("strippedsize", (int)::GetSerializeSize(block, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS));
     result.pushKV("size", (int)::GetSerializeSize(block, PROTOCOL_VERSION));
     result.pushKV("weight", (int)::GetBlockWeight(block));
+
+     UniValue preconfblocks(UniValue::VARR);
+    for (const SignedBlock& signedBlock : block.preconfBlock) {
+        UniValue result(UniValue::VOBJ);
+        result.pushKV("fee", signedBlock.currentFee);
+        result.pushKV("blockindex", (uint64_t)signedBlock.blockIndex);
+        result.pushKV("height", (uint64_t)signedBlock.nHeight);
+        result.pushKV("time", signedBlock.nTime);
+        result.pushKV("previousblock", signedBlock.hashPrevSignedBlock.ToString());
+        result.pushKV("merkleroot", signedBlock.hashMerkleRoot.ToString());
+        result.pushKV("hash", signedBlock.GetHash().ToString());
+        UniValue txs(UniValue::VARR);
+        for (size_t i = 0; i < signedBlock.vtx.size(); ++i) {
+            const CTransactionRef& tx = signedBlock.vtx.at(i);
+            UniValue objTx(UniValue::VOBJ);
+            TxToUniv(*tx, /*block_hash=*/uint256(), /*entry=*/objTx, /*include_hex=*/true, 1);
+            txs.push_back(objTx);
+        }
+        result.pushKV("tx", txs);
+        preconfblocks.push_back(result);
+    }
+    result.pushKV("preconfblocks", preconfblocks);
+
+    // invalid tx info
+    UniValue invalidTxs(UniValue::VARR);
+    for (const uint256& txId : block.invalidTx) {
+        invalidTxs.push_back(txId.GetHex());
+    }
+    result.pushKV("invalidtxs", invalidTxs);
+    result.pushKV("reconsiliationblock", block.reconsiliationBlock.GetHex());
+
     UniValue txs(UniValue::VARR);
 
     switch (verbosity) {
@@ -1013,6 +1045,8 @@ static RPCHelpMan gettxoutsetinfo()
                         {RPCResult::Type::NUM, "transactions", /*optional=*/true, "The number of transactions with unspent outputs (not available when coinstatsindex is used)"},
                         {RPCResult::Type::NUM, "disk_size", /*optional=*/true, "The estimated size of the chainstate on disk (not available when coinstatsindex is used)"},
                         {RPCResult::Type::STR_AMOUNT, "total_amount", "The total amount of coins in the UTXO set"},
+                        {RPCResult::Type::NUM, "overall_asset_supply", "The total amount of assets in the UTXO set"},
+                        {RPCResult::Type::NUM, "total_assets", "The total amount of assets"},
                         {RPCResult::Type::STR_AMOUNT, "total_unspendable_amount", /*optional=*/true, "The total amount of coins permanently excluded from the UTXO set (only available if coinstatsindex is used)"},
                         {RPCResult::Type::OBJ, "block_info", /*optional=*/true, "Info on amounts in the block at this block height (only available if coinstatsindex is used)",
                         {
@@ -1102,6 +1136,14 @@ static RPCHelpMan gettxoutsetinfo()
         if (hash_type == CoinStatsHashType::MUHASH) {
             ret.pushKV("muhash", stats.hashSerialized.GetHex());
         }
+
+        uint32_t nIDLast = 0;
+        active_chainstate.passettree->GetLastAssetID(nIDLast);
+
+        ret.pushKV("total_amount", ValueFromAmount(stats.total_amount.value()));
+        ret.pushKV("overall_asset_supply", stats.total_assets.value());
+        ret.pushKV("total_assets", nIDLast);
+
         CHECK_NONFATAL(stats.total_amount.has_value());
         ret.pushKV("total_amount", ValueFromAmount(stats.total_amount.value()));
         if (!stats.index_used) {

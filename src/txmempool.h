@@ -152,6 +152,15 @@ public:
     }
 };
 
+class CompareTxMemPoolEntryByExpiryHeight
+{
+public:
+    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
+    {
+        return a.GetExpiredHeight() < b.GetExpiredHeight();
+    }
+};
+
 /** \class CompareTxMemPoolEntryByAncestorScore
  *
  *  Sort an entry by min(score/size of entry's tx, score/size with all ancestors).
@@ -199,6 +208,7 @@ public:
 // Multi_index tag names
 struct descendant_score {};
 struct entry_time {};
+struct expiry_height {};
 struct ancestor_score {};
 struct index_by_wtxid {};
 
@@ -352,6 +362,13 @@ public:
                 boost::multi_index::identity<CTxMemPoolEntry>,
                 CompareTxMemPoolEntryByEntryTime
             >,
+
+            // sorted by preconf expire height
+            boost::multi_index::ordered_non_unique<
+                boost::multi_index::tag<expiry_height>,
+                boost::multi_index::identity<CTxMemPoolEntry>,
+                CompareTxMemPoolEntryByExpiryHeight
+            >,
             // sorted by fee rate with ancestors
             boost::multi_index::ordered_non_unique<
                 boost::multi_index::tag<ancestor_score>,
@@ -446,6 +463,7 @@ public:
     const std::optional<unsigned> m_max_datacarrier_bytes;
     const bool m_require_standard;
     const bool m_full_rbf;
+    const bool is_preconf;
 
     const Limits m_limits;
 
@@ -485,7 +503,7 @@ public:
     void removeForReorg(CChain& chain, std::function<bool(txiter)> filter_final_and_mature) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
     void removeConflicts(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
-
+    void removeForPreconfBlock(const std::vector<CTransactionRef>& vtx) EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool CompareDepthAndScore(const uint256& hasha, const uint256& hashb, bool wtxid=false);
     void queryHashes(std::vector<uint256>& vtxid) const;
     bool isSpent(const COutPoint& outpoint) const;
@@ -637,6 +655,9 @@ public:
     /** Expire all transaction (and their dependencies) in the mempool older than time. Return the number of removed transactions. */
     int Expire(std::chrono::seconds time) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
+    /** Expire all preconf transaction (and their dependencies) in the mempool older than time. Return the number of removed transactions. */
+    int PreconfExpire(uint64_t height) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    
     /**
      * Calculate the ancestor and descendant count for the given transaction.
      * The counts include the transaction itself.

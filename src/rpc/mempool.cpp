@@ -22,7 +22,9 @@
 #include <util/fs.h>
 #include <util/moneystr.h>
 #include <util/time.h>
-
+#include <anduro_deposit.h>
+#include <anduro_validator.h>
+#include <coordinate/coordinate_mempool_entry.h>
 #include <utility>
 
 using kernel::DumpMempool;
@@ -45,6 +47,30 @@ static RPCHelpMan sendrawtransaction()
             {"maxfeerate", RPCArg::Type::AMOUNT, RPCArg::Default{FormatMoney(DEFAULT_MAX_RAW_TX_FEE_RATE.GetFeePerK())},
              "Reject transactions whose fee rate is higher than the specified value, expressed in " + CURRENCY_UNIT +
                  "/kvB.\nSet to 0 to accept any fee rate."},
+            {"signatures",RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "pre signed block signature details from anduro",
+              {
+                {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                    {
+                    {"inputs", RPCArg::Type::ARR, RPCArg::Optional::OMITTED, "pegin input details",
+                        {
+                            {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                                {
+                                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Address which will get deposit as pegin"},
+                                    {"amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "Pegin amount details"},
+                                    {"witness", RPCArg::Type::STR, RPCArg::Optional::NO, "Pegin witness which hold leaf and signature for particular pegin"},
+                                    {"block_height", RPCArg::Type::NUM, RPCArg::Optional::NO, "pegin block height used to sign"},
+                                    {"deposit_address", RPCArg::Type::STR, RPCArg::Optional::NO, "The anduro deposit address"},
+                                    {"burn_address", RPCArg::Type::STR, RPCArg::Optional::NO, "The anduro burn address"},
+                                },
+                            },
+                        },
+                    },
+                    {"currentkeys", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "the next current keys to sign the pegin and pegout receipts"},
+                    {"nextindex", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "the next index to be signed which refer back from anduro"},
+                    }
+                }
+              }
+            },
             {"maxburnamount", RPCArg::Type::AMOUNT, RPCArg::Default{FormatMoney(0)},
              "Reject transactions with provably unspendable outputs (e.g. 'datacarrier' outputs that use the OP_RETURN opcode) greater than the specified value, expressed in " + CURRENCY_UNIT + ".\n"
              "If burning funds through unspendable outputs is desired, increase this value.\n"
@@ -65,7 +91,55 @@ static RPCHelpMan sendrawtransaction()
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
         {
-            const CAmount max_burn_amount = request.params[2].isNull() ? 0 : AmountFromValue(request.params[2]);
+
+            if(!request.params[2].isNull()) {
+                ChainstateManager& chainman = EnsureAnyChainman(request.context);
+                const UniValue& main_params = request.params[2].get_array();
+                if(main_params.size() > 0) {
+                    std::vector<AnduroTxOut> tOuts;
+                    std::vector<AnduroTxOut> mainOuts;
+                    for (unsigned int idx = 0; idx < main_params.size(); idx++) {
+                        const UniValue& fedParams = main_params[idx].get_obj();
+                        RPCTypeCheckObj(fedParams,
+                        {
+                            {"inputs", UniValueType(UniValue::VARR)},
+                            {"nextindex", UniValueType(UniValue::VNUM)},
+                            {"currentkeys", UniValueType(UniValue::VSTR)},
+                        });
+                        const UniValue output_params = fedParams.find_value("inputs").get_array();
+        
+                        for (unsigned int idx = 0; idx < output_params.size(); idx++) {
+                            const UniValue& o = output_params[idx].get_obj();
+                            RPCTypeCheckObj(o,
+                            {
+                                {"address", UniValueType(UniValue::VSTR)},
+                                {"amount", UniValueType(UniValue::VNUM)},
+                                {"witness", UniValueType(UniValue::VSTR)},
+                                {"block_height", UniValueType(UniValue::VNUM)},
+                                {"deposit_address", UniValueType(UniValue::VSTR)},
+                                {"burn_address", UniValueType(UniValue::VSTR)},
+                            });
+                            const CTxDestination coinbaseScript = DecodeDestination( o.find_value("address").get_str());
+                            const CScript scriptPubKey = GetScriptForDestination(coinbaseScript);
+                            AnduroTxOut out(AmountFromValue(o.find_value("amount")), scriptPubKey, o.find_value( "witness").get_str(), o.find_value("block_height").getInt<int32_t>(),fedParams.find_value("nextindex").getInt<int32_t>(),fedParams.find_value("currentkeys").get_str(),o.find_value("deposit_address").get_str(),o.find_value("burn_address").get_str());
+
+                            tOuts.push_back(out);
+                        }
+                        if(!isSpecialTxoutValid(tOuts,chainman)) {
+                            throw JSONRPCError(RPC_WALLET_ERROR, "Coinbase Special Txout is invalid");
+                        }
+                        for (const AnduroTxOut& txOut : tOuts) {
+                            mainOuts.push_back(txOut);
+                        }
+                        tOuts.clear();
+                    }
+                    includePreSignedSignature(mainOuts);
+                    return "success";
+                }
+            }
+            
+
+            const CAmount max_burn_amount = request.params[3].isNull() ? 0 : AmountFromValue(request.params[3]);
 
             CMutableTransaction mtx;
             if (!DecodeHexTx(mtx, request.params[0].get_str())) {
@@ -970,6 +1044,96 @@ static RPCHelpMan submitpackage()
     };
 }
 
+static RPCHelpMan getpreconfmempoolinfo()
+{
+    return RPCHelpMan{"getpreconfmempoolinfo",
+        "Returns details on the active state of the TX preconf memory pool.",
+        {},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::BOOL, "loaded", "True if the mempool is fully loaded"},
+                {RPCResult::Type::NUM, "size", "Current tx count"},
+                {RPCResult::Type::NUM, "bytes", "Sum of all virtual transaction sizes as defined in BIP 141. Differs from actual serialized size because witness data is discounted"},
+                {RPCResult::Type::NUM, "usage", "Total memory usage for the mempool"},
+                {RPCResult::Type::STR_AMOUNT, "total_fee", "Total fees for the mempool in " + CURRENCY_UNIT + ", ignoring modified fees through prioritisetransaction"},
+                {RPCResult::Type::NUM, "maxmempool", "Maximum memory usage for the mempool"},
+                {RPCResult::Type::STR_AMOUNT, "mempoolminfee", "Minimum fee rate in " + CURRENCY_UNIT + "/kvB for tx to be accepted. Is the maximum of minrelaytxfee and minimum mempool fee"},
+                {RPCResult::Type::STR_AMOUNT, "minrelaytxfee", "Current minimum relay fee for transactions"},
+                {RPCResult::Type::NUM, "incrementalrelayfee", "minimum fee rate increment for mempool limiting or replacement in " + CURRENCY_UNIT + "/kvB"},
+                {RPCResult::Type::NUM, "unbroadcastcount", "Current number of transactions that haven't passed initial broadcast yet"},
+                {RPCResult::Type::BOOL, "fullrbf", "True if the mempool accepts RBF without replaceability signaling inspection"},
+            }},
+        RPCExamples{
+            HelpExampleCli("getpreconfmempoolinfo", "")
+            + HelpExampleRpc("getpreconfmempoolinfo", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+            ChainstateManager& chainman = EnsureAnyChainman(request.context);
+            LOCK(cs_main);
+            const CTxMemPool& preconf_pool{*chainman.ActiveChainstate().GetPreConfMempool()};
+            return MempoolInfoToJSON(preconf_pool);
+},
+    };
+}
+
+
+static RPCHelpMan getrawpreconfmempool()
+{
+    return RPCHelpMan{"getrawpreconfmempool",
+        "\nReturns all transaction ids in preconf memory pool as a json array of string transaction ids.\n"
+        "\nHint: use getmempoolentry to fetch a specific transaction from the mempool.\n",
+        {
+            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "True for a json object, false for array of transaction ids"},
+            {"mempool_sequence", RPCArg::Type::BOOL, RPCArg::Default{false}, "If verbose=false, returns a json object with transaction list and mempool sequence number attached."},
+        },
+        {
+            RPCResult{"for verbose = false",
+                RPCResult::Type::ARR, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "", "The transaction id"},
+                }},
+            RPCResult{"for verbose = true",
+                RPCResult::Type::OBJ_DYN, "", "",
+                {
+                    {RPCResult::Type::OBJ, "transactionid", "", MempoolEntryDescription()},
+                }},
+            RPCResult{"for verbose = false and mempool_sequence = true",
+                RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::ARR, "txids", "",
+                    {
+                        {RPCResult::Type::STR_HEX, "", "The transaction id"},
+                    }},
+                    {RPCResult::Type::NUM, "mempool_sequence", "The mempool sequence value."},
+                }},
+        },
+        RPCExamples{
+            HelpExampleCli("getrawpreconfmempool", "true")
+            + HelpExampleRpc("getrawpreconfmempool", "true")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    bool fVerbose = false;
+    if (!request.params[0].isNull())
+        fVerbose = request.params[0].get_bool();
+
+    bool include_mempool_sequence = false;
+    if (!request.params[1].isNull()) {
+        include_mempool_sequence = request.params[1].get_bool();
+    }
+    ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    LOCK(cs_main);
+    const CTxMemPool& preconf_pool{*chainman.ActiveChainstate().GetPreConfMempool()};
+    return MempoolToJSON(preconf_pool, fVerbose, include_mempool_sequence);
+},
+    };
+}
+
+
+
+
 void RegisterMempoolRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -984,6 +1148,8 @@ void RegisterMempoolRPCCommands(CRPCTable& t)
         {"blockchain", &importmempool},
         {"blockchain", &savemempool},
         {"rawtransactions", &submitpackage},
+        {"preconf", &getpreconfmempoolinfo},
+        {"preconf", &getrawpreconfmempool},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);

@@ -165,6 +165,7 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
 
     m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args), DEFAULT_ACCEPT_STALE_FEE_ESTIMATES);
     m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
+    m_node.preconfmempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
@@ -204,6 +205,7 @@ ChainTestingSetup::~ChainTestingSetup()
     m_node.netgroupman.reset();
     m_node.args = nullptr;
     m_node.mempool.reset();
+    m_node.preconfmempool.reset();
     m_node.scheduler.reset();
     m_node.chainman.reset();
 }
@@ -213,9 +215,11 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
     auto& chainman{*Assert(m_node.chainman)};
     node::ChainstateLoadOptions options;
     options.mempool = Assert(m_node.mempool.get());
+    options.preconfmempool = Assert(m_node.preconfmempool.get());
     options.block_tree_db_in_memory = m_block_tree_db_in_memory;
     options.coins_db_in_memory = m_coins_db_in_memory;
     options.reindex = node::fReindex;
+    options.asset_prune = m_args.GetBoolArg("-assetprune", false);
     options.reindex_chainstate = m_args.GetBoolArg("-reindex-chainstate", false);
     options.prune = chainman.m_blockman.IsPruneMode();
     options.check_blocks = m_args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS);
@@ -259,7 +263,7 @@ TestingSetup::TestingSetup(
     peerman_opts.deterministic_rng = true;
     m_node.peerman = PeerManager::make(*m_node.connman, *m_node.addrman,
                                        m_node.banman.get(), *m_node.chainman,
-                                       *m_node.mempool, peerman_opts);
+                                       *m_node.mempool,  *m_node.preconfmempool, peerman_opts);
 
     {
         CConnman::Options options;
@@ -287,7 +291,7 @@ TestChain100Setup::TestChain100Setup(
         LOCK(::cs_main);
         assert(
             m_node.chainman->ActiveChain().Tip()->GetBlockHash().ToString() ==
-            "7977cf15377ee488d9d7d1b0a667e8b5a998adc59d48c320b52293b56fa6922f");
+            "c82d53bababd5083fc6eba1e37fd7523c07a6f4bac8392a891549a0fcd66ad2f");
     }
 }
 
@@ -366,7 +370,9 @@ CMutableTransaction TestChain100Setup::CreateValidMempoolTransaction(CTransactio
     // - Populate a CoinsViewCache with the unspent output
     CCoinsView coins_view;
     CCoinsViewCache coins_cache(&coins_view);
-    AddCoins(coins_cache, *input_transaction.get(), input_height);
+    CAmount amountAssetIn = CAmount(0);
+    int nControlN = -1;
+    AddCoins(coins_cache, *input_transaction.get(), input_height, 0, amountAssetIn, nControlN);
     // - Use GetCoin to properly populate utxo_to_spend,
     Coin utxo_to_spend;
     assert(coins_cache.GetCoin(outpoint_to_spend, utxo_to_spend));

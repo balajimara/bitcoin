@@ -5,6 +5,9 @@
 #include <key_io.h>
 #include <rpc/auxpow_miner.h>
 #include <core_io.h>
+#include <anduro_deposit.h>
+#include <coordinate/coordinate_mempool_entry.h>
+#include <anduro_validator.h>
 
 using node::NodeContext;
 
@@ -72,11 +75,237 @@ static RPCHelpMan submitAuxBlock()
 
 }
 
+
+
+static RPCHelpMan anduroDepositAddress()
+{
+    return RPCHelpMan{
+        "andurodepositaddress",
+        "Anduro current deposit address",
+        {},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR, "result", /*optional=*/true, "Returns anduro deposit address"},
+            },
+        },
+        RPCExamples{
+            HelpExampleCli("andurodepositaddress", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            return getDepositAddress();
+        }
+    };
+
+}
+
+static RPCHelpMan anduroWithdrawAddress()
+{
+    return RPCHelpMan{
+        "anduroburnaddress",
+        "Anduro current burn address",
+        {},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR, "result", /*optional=*/true, "Returns anduro burn address"},
+            },
+        },
+        RPCExamples{
+            HelpExampleCli("anduroburnaddress", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            return getBurnAddress();
+        }
+    };
+
+}
+
+static RPCHelpMan getPendingDeposit() {
+        return RPCHelpMan{
+        "getpendingdeposit",
+        "get all pending pegins and presign signature for next block",
+        {
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::ARR, "deposits", "",
+                {
+                     {RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::STR_AMOUNT, "value", "The value in " + CURRENCY_UNIT},
+                            {RPCResult::Type::NUM, "n", "index"},
+                            {RPCResult::Type::NUM, "n", "block_height"},
+                        }
+                     }
+                }},
+                {RPCResult::Type::STR_AMOUNT, "total", /*optional=*/true, "return total pending balance"},
+            },
+        },
+        RPCExamples{
+           HelpExampleCli("getpendingdeposit", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+                UniValue result(UniValue::VOBJ);
+                result.pushKV("total", ValueFromAmount(listPendingDepositTotal(-1)));
+                UniValue deposits(UniValue::VARR);
+                std::vector<AnduroTxOut> txList = listPendingDepositTransaction(-1);
+                uint64_t index = 0;
+                for (const AnduroTxOut& eout : txList) {
+                    UniValue toutresult(UniValue::VOBJ);
+                    toutresult.pushKV("index", index);
+                    toutresult.pushKV("value", ValueFromAmount(eout.nValue));
+                    toutresult.pushKV("block_height", eout.block_height);
+                    index = index + 1;
+                    deposits.push_back(toutresult);
+                }
+                result.pushKV("deposits", deposits);
+                return result;
+        }
+    };
+
+}
+
+static RPCHelpMan listAllAssets() {
+        return RPCHelpMan{
+        "listallassets",
+        "get all coordinate assets",
+        {
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::ARR, "assets", "",
+                {
+                     {RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::NUM, "id", "AssetID"},
+                            {RPCResult::Type::NUM, "assettype", "Asset Type"},
+                            {RPCResult::Type::STR, "ticker", "Asset Ticker"},
+                            {RPCResult::Type::NUM, "supply", "Asset supply"},
+                            {RPCResult::Type::STR, "headline", "Asset title"},
+                            {RPCResult::Type::STR, "payload", "Asset payload"},
+                            {RPCResult::Type::STR, "txid", "Asset genesis"},
+                            {RPCResult::Type::STR, "controller", "Asset controller"},
+                            {RPCResult::Type::STR, "owner", "Asset owner"},
+                        }
+                     }
+                }},
+            },
+        },
+        RPCExamples{
+           HelpExampleCli("listallassets", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            const CTxMemPool& mempool = EnsureMemPool(node);
+            ChainstateManager& chainman = EnsureChainman(node);
+
+                UniValue result(UniValue::VOBJ);
+                UniValue assets(UniValue::VARR);
+                std::vector<CoordinateAsset> assetList = chainman.ActiveChainstate().passettree->GetAssets();
+            ;
+                for (const CoordinateAsset& asset_item : assetList) {
+                    UniValue obj(UniValue::VOBJ);
+                    obj.pushKV("id", (uint64_t)asset_item.nID);
+                    obj.pushKV("assettype", asset_item.assetType);
+                    obj.pushKV("ticker", asset_item.strTicker);
+                    obj.pushKV("supply", asset_item.nSupply);
+                    obj.pushKV("headline", asset_item.strHeadline);
+                    obj.pushKV("payload", asset_item.payload.ToString());
+                    obj.pushKV("txid", asset_item.txid.ToString());
+                    obj.pushKV("controller", asset_item.strController);
+                    obj.pushKV("owner", asset_item.strOwner);
+                    assets.push_back(obj);
+                }
+                result.pushKV("assets", assets);
+                return result;
+        }
+    };
+
+}
+
+static RPCHelpMan listMempoolAssets() {
+        return RPCHelpMan{
+        "listmempoolassets",
+        "get all coordinate assets from mempool",
+        {
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::ARR, "assets", "",
+                {
+                     {RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::NUM, "assetId", "AssetID"},
+                            {RPCResult::Type::STR_HEX, "assetId", "Transaction ID"},
+                            {RPCResult::Type::NUM, "vout", "Transaction Index"},
+                            {RPCResult::Type::NUM, "nValue", "Transaction Amount"},
+                        }
+                     }
+                }},
+            },
+        },
+        RPCExamples{
+           HelpExampleCli("listmempoolassets", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            const CTxMemPool& mempool = EnsureMemPool(node);
+            ChainstateManager& chainman = EnsureChainman(node);
+
+                UniValue result(UniValue::VOBJ);
+                UniValue assets(UniValue::VARR);
+                std::vector<CoordinateMempoolEntry> assetList = getMempoolAssets();
+            ;
+                for (const CoordinateMempoolEntry& assetItem : assetList) {
+                    UniValue obj(UniValue::VOBJ);
+                    obj.pushKV("assetId", (uint32_t)assetItem.assetID);
+                    obj.pushKV("txid", assetItem.txid.ToString());
+                    obj.pushKV("vout", (uint32_t)assetItem.vout);
+                     obj.pushKV("nValue", (int64_t)assetItem.nValue);
+                    assets.push_back(obj);
+                }
+                result.pushKV("assets", assets);
+                return result;
+        }
+    };
+
+}
+
+
+
+static std::vector<RPCArg> CreateTxDoc()
+{
+    return {
+        {"inputs", RPCArg::Type::ARR, RPCArg::Optional::NO, "The inputs",
+            {
+                {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                    {
+                        {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The bitcoin address"},
+                        {"amount", RPCArg::Type::NUM, RPCArg::Optional::NO, "The bitcoin amount"}
+                    },
+                },
+            },
+        }
+    };
+}
+
 void RegisterCoordinateRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
         {"coordinate", &createAuxBlock},
-        {"coordinate", &submitAuxBlock}
+        {"coordinate", &submitAuxBlock},
+        {"coordinate", &getPendingDeposit},
+        {"coordinate", &anduroDepositAddress},
+        {"coordinate", &anduroWithdrawAddress},
+        {"coordinate", &listAllAssets},
+        {"coordinate", &listMempoolAssets}
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);
